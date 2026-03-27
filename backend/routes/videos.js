@@ -43,7 +43,6 @@ function getVideoDuration(filePath) {
   });
 }
 
-// tus resumable upload server
 const tusServer = new TusServer({
   path: '/api/videos/upload',
   datastore: new FileStore({ directory: uploadDir }),
@@ -53,7 +52,6 @@ const tusServer = new TusServer({
       const originalName = decodeURIComponent(upload.metadata?.filename || 'video');
       const filePath = path.join(uploadDir, upload.id);
       const size = upload.size;
-
       const duration = await getVideoDuration(filePath);
 
       await prisma.video.create({
@@ -73,7 +71,6 @@ const tusServer = new TusServer({
   },
 });
 
-// tus upload endpoint — all methods (POST, PATCH, HEAD, OPTIONS, DELETE)
 router.all('/upload*', requireAuth, uploadLimiter, (req, res) => {
   return tusServer.handle(req, res);
 });
@@ -99,7 +96,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
     await fs.unlink(video.path);
     await fs.unlink(video.path + '.json').catch(() => {});
   } catch {
-    // File may already be gone — not critical
+    // File may already be gone
   }
 
   res.json({ ok: true });
