@@ -1,5 +1,5 @@
 import { Radio, LogOut } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth.jsx';
 import { Button } from '@/components/ui/button';
 
 export default function Layout({ children }) {
