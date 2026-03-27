@@ -5,6 +5,9 @@ import fs from 'fs/promises';
 
 const prisma = new PrismaClient();
 
+// videoId → progress (0-100)
+export const transcodingProgress = new Map();
+
 export async function processVideo(videoId) {
   const video = await prisma.video.findUnique({ where: { id: videoId } });
   if (!video) return;
@@ -12,8 +15,10 @@ export async function processVideo(videoId) {
   const inputPath = video.path;
   const outputPath = inputPath + '.transcoded.mp4';
 
+  transcodingProgress.set(videoId, 0);
+
   try {
-    await transcode(inputPath, outputPath);
+    await transcode(inputPath, outputPath, video.duration, videoId);
 
     // Replace original with transcoded
     await fs.unlink(inputPath);
@@ -22,10 +27,12 @@ export async function processVideo(videoId) {
     // Get final duration
     const duration = await getVideoDuration(inputPath);
 
+    transcodingProgress.set(videoId, 100);
     await prisma.video.update({
       where: { id: videoId },
       data: { status: 'READY', duration },
     });
+    transcodingProgress.delete(videoId);
   } catch (err) {
     console.error(`Transcoding failed for video ${videoId}:`, err.message);
     await fs.unlink(outputPath).catch(() => {});
@@ -33,10 +40,11 @@ export async function processVideo(videoId) {
       where: { id: videoId },
       data: { status: 'ERROR' },
     });
+    transcodingProgress.delete(videoId);
   }
 }
 
-function transcode(inputPath, outputPath) {
+function transcode(inputPath, outputPath, totalDuration, videoId) {
   return new Promise((resolve, reject) => {
     const args = [
       '-i', inputPath,
@@ -53,6 +61,16 @@ function transcode(inputPath, outputPath) {
     ];
 
     const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] });
+
+    proc.stderr.on('data', (data) => {
+      if (!totalDuration) return;
+      const match = data.toString().match(/time=(\d+):(\d+):(\d+\.\d+)/);
+      if (match) {
+        const current = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseFloat(match[3]);
+        const pct = Math.min(99, Math.round((current / totalDuration) * 100));
+        transcodingProgress.set(videoId, pct);
+      }
+    });
 
     proc.on('close', (code) => {
       if (code === 0) resolve();

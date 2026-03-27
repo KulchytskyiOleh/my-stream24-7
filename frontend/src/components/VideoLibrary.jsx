@@ -1,13 +1,31 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, Trash2, Film, Loader2, X } from 'lucide-react';
 import * as tus from 'tus-js-client';
 import { Button } from '@/components/ui/button';
 import { formatBytes, formatDuration } from '@/lib/utils';
 import { deleteVideo } from '@/lib/api';
+import api from '@/lib/api';
 
 export default function VideoLibrary({ videos, onRefresh }) {
   const [uploading, setUploading] = useState([]);
+  const [transcodingPct, setTranscodingPct] = useState({});
+
+  // Poll progress for PROCESSING videos
+  useEffect(() => {
+    const processing = videos.filter(v => v.status === 'PROCESSING');
+    if (processing.length === 0) return;
+
+    const interval = setInterval(async () => {
+      const updates = await Promise.all(
+        processing.map(v => api.get(`/videos/${v.id}/progress`).then(r => [v.id, r.data.progress]))
+      );
+      setTranscodingPct(Object.fromEntries(updates));
+      onRefresh();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [videos]);
 
   const startUpload = (file) => {
     const id = `${Date.now()}-${Math.random()}`;
@@ -115,14 +133,25 @@ export default function VideoLibrary({ videos, onRefresh }) {
             }
             <div className="flex-1 min-w-0">
               <p className="text-sm truncate">{video.originalName}</p>
-              <p className="text-xs text-muted-foreground">
-                {video.status === 'PROCESSING'
-                  ? 'Processing...'
-                  : video.status === 'ERROR'
-                  ? 'Processing failed'
-                  : `${formatBytes(video.size)} · ${formatDuration(video.duration)}`
-                }
-              </p>
+              {video.status === 'PROCESSING' ? (
+                <div className="mt-1">
+                  <div className="flex justify-between text-xs text-muted-foreground mb-0.5">
+                    <span>Processing...</span>
+                    <span>{transcodingPct[video.id] ?? 0}%</span>
+                  </div>
+                  <div className="h-1 bg-border rounded-full overflow-hidden">
+                    <div className="h-full bg-primary transition-all duration-500"
+                      style={{ width: `${transcodingPct[video.id] ?? 0}%` }} />
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {video.status === 'ERROR'
+                    ? 'Processing failed'
+                    : `${formatBytes(video.size)} · ${formatDuration(video.duration)}`
+                  }
+                </p>
+              )}
             </div>
             <Button
               variant="ghost"

@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import { Server as TusServer } from '@tus/server';
 import { FileStore } from '@tus/file-store';
-import { processVideo } from '../services/transcoder.js';
+import { processVideo, transcodingProgress } from '../services/transcoder.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const prisma = new PrismaClient();
@@ -79,6 +79,11 @@ const tusServer = new TusServer({
 // Rate limit only POST (new upload creation), not PATCH (chunk uploads)
 router.post('/upload', requireAuth, uploadLimiter, (req, res) => tusServer.handle(req, res));
 router.all('/upload*', requireAuth, (req, res) => tusServer.handle(req, res));
+
+router.get('/:id/progress', requireAuth, async (req, res) => {
+  const progress = transcodingProgress.get(req.params.id) ?? null;
+  res.json({ progress });
+});
 
 router.get('/', requireAuth, async (req, res) => {
   const videos = await prisma.video.findMany({
