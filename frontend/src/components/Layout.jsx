@@ -1,9 +1,11 @@
-import { Radio, LogOut } from 'lucide-react';
+import { Radio, LogOut, Sun, Moon } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth.jsx';
+import { useTheme } from '@/hooks/useTheme.js';
 import { Button } from '@/components/ui/button';
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
+  const { theme, toggle } = useTheme();
 
   return (
     <div className="min-h-screen bg-background">
@@ -22,6 +24,9 @@ export default function Layout({ children }) {
                 )}
                 <span className="hidden sm:block">{user.name}</span>
               </div>
+              <Button variant="ghost" size="icon" onClick={toggle} title="Toggle theme">
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </Button>
               <Button variant="ghost" size="icon" onClick={logout} title="Logout">
                 <LogOut size={16} />
               </Button>
