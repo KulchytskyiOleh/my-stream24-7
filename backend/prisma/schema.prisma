@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(uuid())
+  googleId   String   @unique @map("google_id")
+  email      String   @unique
+  name       String
+  avatar     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  videos     Video[]
+  streams    Stream[]
+
+  @@map("users")
+}
+
+model Video {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  filename     String
+  originalName String   @map("original_name")
+  size         BigInt
+  duration     Float?
+  path         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playlistItems PlaylistItem[]
+  streams       Stream[]
+
+  @@map("videos")
+}
+
+model Stream {
+  id             String       @id @default(uuid())
+  userId         String       @map("user_id")
+  name           String
+  streamKeyEnc   String       @map("stream_key_enc")
+  status         StreamStatus @default(OFFLINE)
+  currentVideoId String?      @map("current_video_id")
+  shuffle        Boolean      @default(false)
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentVideo  Video?         @relation(fields: [currentVideoId], references: [id])
+  playlistItems PlaylistItem[]
+
+  @@map("streams")
+}
+
+model PlaylistItem {
+  id        String   @id @default(uuid())
+  streamId  String   @map("stream_id")
+  videoId   String   @map("video_id")
+  position  Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  video  Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([streamId, position])
+  @@map("playlist_items")
+}
+
+enum StreamStatus {
+  ONLINE
+  OFFLINE
+  ERROR
+}
