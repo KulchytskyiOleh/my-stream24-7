@@ -1,10 +1,10 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, Trash2, Film, Loader2, X } from 'lucide-react';
+import { Upload, Trash2, Film, Loader2, X, AlertTriangle } from 'lucide-react';
 import * as tus from 'tus-js-client';
 import { Button } from '@/components/ui/button';
 import { formatBytes, formatDuration } from '@/lib/utils';
-import { deleteVideo } from '@/lib/api';
+import { deleteVideo, transcodeVideo } from '@/lib/api';
 import api from '@/lib/api';
 
 export default function VideoLibrary({ videos, onRefresh }) {
@@ -127,22 +127,31 @@ export default function VideoLibrary({ videos, onRefresh }) {
       <div className="space-y-1">
         {videos.map(video => (
           <div key={video.id} className="flex items-center gap-3 p-3 rounded-md hover:bg-muted/50 group">
-            {video.status === 'PROCESSING'
+            {video.status === 'PROCESSING' || video.status === 'TRANSCODING'
               ? <Loader2 size={16} className="text-muted-foreground shrink-0 animate-spin" />
+              : video.status === 'NEEDS_TRANSCODE'
+              ? <AlertTriangle size={16} className="text-yellow-500 shrink-0" />
               : <Film size={16} className="text-muted-foreground shrink-0" />
             }
             <div className="flex-1 min-w-0">
               <p className="text-sm truncate">{video.originalName}</p>
               {video.status === 'PROCESSING' ? (
+                <p className="text-xs text-muted-foreground">Checking...</p>
+              ) : video.status === 'TRANSCODING' ? (
                 <div className="mt-1">
                   <div className="flex justify-between text-xs text-muted-foreground mb-0.5">
-                    <span>Processing...</span>
+                    <span>Transcoding...</span>
                     <span>{transcodingPct[video.id] ?? 0}%</span>
                   </div>
                   <div className="h-1 bg-border rounded-full overflow-hidden">
                     <div className="h-full bg-primary transition-all duration-500"
                       style={{ width: `${transcodingPct[video.id] ?? 0}%` }} />
                   </div>
+                </div>
+              ) : video.status === 'NEEDS_TRANSCODE' ? (
+                <div>
+                  <p className="text-xs text-muted-foreground">{formatBytes(video.size)} · {formatDuration(video.duration)}</p>
+                  <p className="text-xs text-yellow-500">Keyframe interval too large for YouTube</p>
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">
@@ -153,10 +162,20 @@ export default function VideoLibrary({ videos, onRefresh }) {
                 </p>
               )}
             </div>
+            {video.status === 'NEEDS_TRANSCODE' && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs text-yellow-500 border-yellow-500/30 hover:bg-yellow-500/10 shrink-0"
+                onClick={() => { transcodeVideo(video.id); onRefresh(); }}
+              >
+                Fix for YouTube
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
-              className="opacity-0 group-hover:opacity-100 h-7 w-7 text-muted-foreground hover:text-destructive"
+              className="opacity-0 group-hover:opacity-100 h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
               onClick={() => handleDelete(video.id)}
             >
               <Trash2 size={14} />

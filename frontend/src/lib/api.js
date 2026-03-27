@@ -22,6 +22,7 @@ export const uploadVideo = (file, onProgress) => {
   }).then(r => r.data);
 };
 export const deleteVideo = (id) => api.delete(`/videos/${id}`).then(r => r.data);
+export const transcodeVideo = (id) => api.post(`/videos/${id}/transcode`).then(r => r.data);
 
 // Streams
 export const getStreams = () => api.get('/streams').then(r => r.data);

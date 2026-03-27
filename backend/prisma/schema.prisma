@@ -41,6 +41,8 @@ model Video {
 
 enum VideoStatus {
   PROCESSING
+  NEEDS_TRANSCODE
+  TRANSCODING
   READY
   ERROR
 }

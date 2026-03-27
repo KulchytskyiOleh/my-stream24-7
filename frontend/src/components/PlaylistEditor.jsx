@@ -97,7 +97,7 @@ export default function PlaylistEditor({ stream, videos, onUpdate }) {
   };
 
   const inPlaylist = new Set(items.map(i => i.video.id));
-  const availableVideos = videos.filter(v => !inPlaylist.has(v.id) && v.status === 'READY');
+  const availableVideos = videos.filter(v => !inPlaylist.has(v.id) && (v.status === 'READY' || v.status === 'NEEDS_TRANSCODE'));
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

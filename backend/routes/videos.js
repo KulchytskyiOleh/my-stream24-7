@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import { Server as TusServer } from '@tus/server';
 import { FileStore } from '@tus/file-store';
-import { processVideo, transcodingProgress } from '../services/transcoder.js';
+import { processVideo, transcodeVideo, transcodingProgress } from '../services/transcoder.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const prisma = new PrismaClient();
@@ -79,6 +79,18 @@ const tusServer = new TusServer({
 // Rate limit only POST (new upload creation), not PATCH (chunk uploads)
 router.post('/upload', requireAuth, uploadLimiter, (req, res) => tusServer.handle(req, res));
 router.all('/upload*', requireAuth, (req, res) => tusServer.handle(req, res));
+
+router.post('/:id/transcode', requireAuth, async (req, res) => {
+  const video = await prisma.video.findFirst({
+    where: { id: req.params.id, userId: req.user.id },
+  });
+  if (!video) return res.status(404).json({ error: 'Video not found' });
+  if (!['NEEDS_TRANSCODE', 'ERROR'].includes(video.status)) {
+    return res.status(400).json({ error: 'Video does not need transcoding' });
+  }
+  transcodeVideo(video.id).catch(err => console.error('transcodeVideo error:', err));
+  res.json({ ok: true });
+});
 
 router.get('/:id/progress', requireAuth, async (req, res) => {
   const progress = transcodingProgress.get(req.params.id) ?? null;

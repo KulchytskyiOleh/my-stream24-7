@@ -1,6 +1,5 @@
 import { spawn } from 'child_process';
 import { PrismaClient } from '@prisma/client';
-import path from 'path';
 import fs from 'fs/promises';
 
 const prisma = new PrismaClient();
@@ -8,7 +7,25 @@ const prisma = new PrismaClient();
 // videoId → progress (0-100)
 export const transcodingProgress = new Map();
 
+// After upload: check keyframe interval, set READY or NEEDS_TRANSCODE
 export async function processVideo(videoId) {
+  const video = await prisma.video.findUnique({ where: { id: videoId } });
+  if (!video) return;
+
+  try {
+    const needsTranscode = await checkNeedsTranscode(video.path);
+    await prisma.video.update({
+      where: { id: videoId },
+      data: { status: needsTranscode ? 'NEEDS_TRANSCODE' : 'READY' },
+    });
+  } catch (err) {
+    console.error(`processVideo check failed for ${videoId}:`, err.message);
+    await prisma.video.update({ where: { id: videoId }, data: { status: 'NEEDS_TRANSCODE' } });
+  }
+}
+
+// User-triggered transcode
+export async function transcodeVideo(videoId) {
   const video = await prisma.video.findUnique({ where: { id: videoId } });
   if (!video) return;
 
@@ -16,32 +33,58 @@ export async function processVideo(videoId) {
   const outputPath = inputPath + '.transcoded.mp4';
 
   transcodingProgress.set(videoId, 0);
+  await prisma.video.update({ where: { id: videoId }, data: { status: 'TRANSCODING' } });
 
   try {
     await transcode(inputPath, outputPath, video.duration, videoId);
 
-    // Replace original with transcoded
     await fs.unlink(inputPath);
     await fs.rename(outputPath, inputPath);
 
-    // Get final duration
     const duration = await getVideoDuration(inputPath);
 
     transcodingProgress.set(videoId, 100);
-    await prisma.video.update({
-      where: { id: videoId },
-      data: { status: 'READY', duration },
-    });
+    await prisma.video.update({ where: { id: videoId }, data: { status: 'READY', duration } });
     transcodingProgress.delete(videoId);
   } catch (err) {
     console.error(`Transcoding failed for video ${videoId}:`, err.message);
     await fs.unlink(outputPath).catch(() => {});
-    await prisma.video.update({
-      where: { id: videoId },
-      data: { status: 'ERROR' },
-    });
+    await prisma.video.update({ where: { id: videoId }, data: { status: 'ERROR' } });
     transcodingProgress.delete(videoId);
   }
+}
+
+function checkNeedsTranscode(filePath) {
+  return new Promise((resolve) => {
+    const proc = spawn('ffprobe', [
+      '-v', 'quiet',
+      '-select_streams', 'v:0',
+      '-show_frames',
+      '-show_entries', 'frame=pict_type,pkt_pts_time',
+      '-of', 'json',
+      '-read_intervals', '%+30',
+      filePath,
+    ]);
+    let output = '';
+    proc.stdout.on('data', (d) => (output += d));
+    proc.on('close', () => {
+      try {
+        const frames = JSON.parse(output).frames || [];
+        const keyframes = frames
+          .filter(f => f.pict_type === 'I')
+          .map(f => parseFloat(f.pkt_pts_time));
+        if (keyframes.length < 2) return resolve(true);
+        let maxInterval = 0;
+        for (let i = 1; i < keyframes.length; i++) {
+          maxInterval = Math.max(maxInterval, keyframes[i] - keyframes[i - 1]);
+        }
+        resolve(maxInterval > 4);
+      } catch {
+        resolve(true);
+      }
+    });
+    proc.on('error', () => resolve(true));
+  });
 }
 
 function transcode(inputPath, outputPath, totalDuration, videoId) {
