@@ -59,7 +59,7 @@ const tusServer = new TusServer({
           userId,
           filename: upload.id,
           originalName,
-          size,
+          size: BigInt(size),
           duration,
           path: filePath,
         },
@@ -81,7 +81,7 @@ router.get('/', requireAuth, async (req, res) => {
     orderBy: { createdAt: 'desc' },
     select: { id: true, originalName: true, size: true, duration: true, createdAt: true },
   });
-  res.json(videos);
+  res.json(videos.map(v => ({ ...v, size: Number(v.size) })));
 });
 
 router.delete('/:id', requireAuth, async (req, res) => {
