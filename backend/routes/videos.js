@@ -74,7 +74,7 @@ const tusServer = new TusServer({
 });
 
 // tus upload endpoint — all methods (POST, PATCH, HEAD, OPTIONS, DELETE)
-router.all('/upload', requireAuth, uploadLimiter, (req, res) => {
+router.all('/upload*', requireAuth, uploadLimiter, (req, res) => {
   return tusServer.handle(req, res);
 });
 
