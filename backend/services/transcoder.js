@@ -62,7 +62,7 @@ function checkNeedsTranscode(filePath) {
       '-show_frames',
       '-show_entries', 'frame=pict_type,pkt_pts_time',
       '-of', 'json',
-      '-read_intervals', '%+30',
+      '-read_intervals', '%+120', // check first 2 minutes
       filePath,
     ]);
     let output = '';
@@ -78,7 +78,7 @@ function checkNeedsTranscode(filePath) {
         for (let i = 1; i < keyframes.length; i++) {
           maxInterval = Math.max(maxInterval, keyframes[i] - keyframes[i - 1]);
         }
-        resolve(maxInterval > 4);
+        resolve(maxInterval > 3.5); // stricter threshold
       } catch {
         resolve(true);
       }

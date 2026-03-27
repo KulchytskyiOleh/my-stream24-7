@@ -27,11 +27,19 @@ export default function Dashboard() {
     refreshVideos();
   }, []);
 
-  // Poll stream status every 5s to show live updates
+  // Poll stream status every 5s
   useEffect(() => {
     const interval = setInterval(refreshStreams, 5000);
     return () => clearInterval(interval);
   }, [refreshStreams]);
+
+  // Poll videos every 5s when any are processing/transcoding
+  useEffect(() => {
+    const hasActive = videos.some(v => ['PROCESSING', 'TRANSCODING'].includes(v.status));
+    if (!hasActive) return;
+    const interval = setInterval(refreshVideos, 5000);
+    return () => clearInterval(interval);
+  }, [videos, refreshVideos]);
 
   return (
     <Layout>
