@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import { Server as TusServer } from '@tus/server';
 import { FileStore } from '@tus/file-store';
+import { processVideo } from '../services/transcoder.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const prisma = new PrismaClient();
@@ -54,7 +55,7 @@ const tusServer = new TusServer({
       const size = upload.size;
       const duration = await getVideoDuration(filePath);
 
-      await prisma.video.create({
+      const video = await prisma.video.create({
         data: {
           userId,
           filename: upload.id,
@@ -62,8 +63,12 @@ const tusServer = new TusServer({
           size: BigInt(size),
           duration,
           path: filePath,
+          status: 'PROCESSING',
         },
       });
+
+      // Transcode in background (fix keyframe interval for YouTube)
+      processVideo(video.id).catch(err => console.error('processVideo error:', err));
     } catch (err) {
       console.error('tus onUploadFinish error:', err);
     }
@@ -79,7 +84,7 @@ router.get('/', requireAuth, async (req, res) => {
   const videos = await prisma.video.findMany({
     where: { userId: req.user.id },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, originalName: true, size: true, duration: true, createdAt: true },
+    select: { id: true, originalName: true, size: true, duration: true, status: true, createdAt: true },
   });
   res.json(videos.map(v => ({ ...v, size: Number(v.size) })));
 });

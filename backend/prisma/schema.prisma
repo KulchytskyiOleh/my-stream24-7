@@ -22,20 +22,27 @@ model User {
 }
 
 model Video {
-  id           String   @id @default(uuid())
-  userId       String   @map("user_id")
+  id           String      @id @default(uuid())
+  userId       String      @map("user_id")
   filename     String
-  originalName String   @map("original_name")
+  originalName String      @map("original_name")
   size         BigInt
   duration     Float?
   path         String
-  createdAt    DateTime @default(now()) @map("created_at")
+  status       VideoStatus @default(PROCESSING)
+  createdAt    DateTime    @default(now()) @map("created_at")
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   playlistItems PlaylistItem[]
   streams       Stream[]
 
   @@map("videos")
+}
+
+enum VideoStatus {
+  PROCESSING
+  READY
+  ERROR
 }
 
 model Stream {

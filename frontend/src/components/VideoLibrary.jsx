@@ -109,11 +109,19 @@ export default function VideoLibrary({ videos, onRefresh }) {
       <div className="space-y-1">
         {videos.map(video => (
           <div key={video.id} className="flex items-center gap-3 p-3 rounded-md hover:bg-muted/50 group">
-            <Film size={16} className="text-muted-foreground shrink-0" />
+            {video.status === 'PROCESSING'
+              ? <Loader2 size={16} className="text-muted-foreground shrink-0 animate-spin" />
+              : <Film size={16} className="text-muted-foreground shrink-0" />
+            }
             <div className="flex-1 min-w-0">
               <p className="text-sm truncate">{video.originalName}</p>
               <p className="text-xs text-muted-foreground">
-                {formatBytes(video.size)} · {formatDuration(video.duration)}
+                {video.status === 'PROCESSING'
+                  ? 'Processing...'
+                  : video.status === 'ERROR'
+                  ? 'Processing failed'
+                  : `${formatBytes(video.size)} · ${formatDuration(video.duration)}`
+                }
               </p>
             </div>
             <Button
