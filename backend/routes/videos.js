@@ -71,9 +71,9 @@ const tusServer = new TusServer({
   },
 });
 
-router.all('/upload*', requireAuth, uploadLimiter, (req, res) => {
-  return tusServer.handle(req, res);
-});
+// Rate limit only POST (new upload creation), not PATCH (chunk uploads)
+router.post('/upload', requireAuth, uploadLimiter, (req, res) => tusServer.handle(req, res));
+router.all('/upload*', requireAuth, (req, res) => tusServer.handle(req, res));
 
 router.get('/', requireAuth, async (req, res) => {
   const videos = await prisma.video.findMany({
