@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth } from '../middleware/auth.js';
 import { encrypt, decrypt } from '../services/encryption.js';
-import { startStream, stopStream, isStreamRunning } from '../services/ffmpeg.js';
+import { startStream, stopStream, isStreamRunning, updateStreamPlaylist } from '../services/ffmpeg.js';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -146,6 +146,9 @@ router.put('/:id/playlist', requireAuth, async (req, res) => {
       })),
     }),
   ]);
+
+  // Update in-memory playlist if stream is running (no interruption)
+  await updateStreamPlaylist(stream.id);
 
   res.json({ ok: true });
 });

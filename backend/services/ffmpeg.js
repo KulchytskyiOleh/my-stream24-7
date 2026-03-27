@@ -118,6 +118,33 @@ export function isStreamRunning(streamId) {
   return activeStreams.has(streamId);
 }
 
+// Update playlist without interrupting current video
+export async function updateStreamPlaylist(streamId) {
+  const state = activeStreams.get(streamId);
+  if (!state) return; // stream not running — nothing to do
+
+  const stream = await prisma.stream.findUnique({
+    where: { id: streamId },
+    include: {
+      playlistItems: {
+        include: { video: true },
+        orderBy: { position: 'asc' },
+      },
+    },
+  });
+  if (!stream) return;
+
+  const currentVideoId = state.playlist[state.currentIndex]?.video?.id;
+  const newPlaylist = stream.shuffle
+    ? shuffleArray([...stream.playlistItems])
+    : [...stream.playlistItems];
+
+  // Keep currentIndex pointing to the same video if it still exists
+  const newIndex = newPlaylist.findIndex(i => i.video.id === currentVideoId);
+  state.playlist = newPlaylist;
+  state.currentIndex = newIndex >= 0 ? newIndex : 0;
+}
+
 export async function stopAllUserStreams(userId) {
   const streams = await prisma.stream.findMany({
     where: { userId, status: 'ONLINE' },
