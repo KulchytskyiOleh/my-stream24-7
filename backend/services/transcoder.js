@@ -13,7 +13,9 @@ export async function processVideo(videoId) {
   if (!video) return;
 
   try {
-    const needsTranscode = await checkNeedsTranscode(video.path);
+    const highBitrate = video.bitrate && video.bitrate > 8_000_000;
+    const badKeyframes = await checkNeedsTranscode(video.path);
+    const needsTranscode = highBitrate || badKeyframes;
     await prisma.video.update({
       where: { id: videoId },
       data: { status: needsTranscode ? 'NEEDS_TRANSCODE' : 'READY' },
@@ -100,7 +102,7 @@ function transcode(inputPath, outputPath, totalDuration, videoId) {
       '-keyint_min', '48',
       '-sc_threshold', '0',
       '-c:a', 'aac',
-      '-b:a', '128k',
+      '-b:a', '256k',
       '-f', 'mp4',
       '-y',
       outputPath,
