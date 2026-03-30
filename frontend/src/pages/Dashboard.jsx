@@ -5,11 +5,12 @@ import VideoLibrary from '@/components/VideoLibrary';
 import StreamSlot from '@/components/StreamSlot';
 import NewStreamDialog from '@/components/NewStreamDialog';
 import { Button } from '@/components/ui/button';
-import { getStreams, getVideos } from '@/lib/api';
+import { getStreams, getVideos, getAudios } from '@/lib/api';
 
 export default function Dashboard() {
   const [streams, setStreams] = useState([]);
   const [videos, setVideos] = useState([]);
+  const [audios, setAudios] = useState([]);
   const [newStreamOpen, setNewStreamOpen] = useState(false);
 
   const refreshStreams = useCallback(async () => {
@@ -22,9 +23,15 @@ export default function Dashboard() {
     setVideos(data);
   }, []);
 
+  const refreshAudios = useCallback(async () => {
+    const data = await getAudios();
+    setAudios(data);
+  }, []);
+
   useEffect(() => {
     refreshStreams();
     refreshVideos();
+    refreshAudios();
   }, []);
 
   // Poll stream status every 5s
@@ -72,7 +79,8 @@ export default function Dashboard() {
                   key={stream.id}
                   stream={stream}
                   videos={videos}
-                  onRefresh={() => { refreshStreams(); refreshVideos(); }}
+                  audios={audios}
+                  onRefresh={() => { refreshStreams(); refreshVideos(); refreshAudios(); }}
                 />
               ))}
             </div>

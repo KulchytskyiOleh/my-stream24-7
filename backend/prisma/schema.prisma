@@ -16,6 +16,7 @@ model User {
   createdAt  DateTime @default(now()) @map("created_at")
 
   videos     Video[]
+  audios     Audio[]
   streams    Stream[]
 
   @@map("users")
@@ -33,11 +34,28 @@ model Video {
   status       VideoStatus @default(PROCESSING)
   createdAt    DateTime    @default(now()) @map("created_at")
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  playlistItems PlaylistItem[]
-  streams       Stream[]
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playlistItems  PlaylistItem[]
+  currentStreams  Stream[]       @relation("CurrentVideo")
+  loopStreams     Stream[]       @relation("LoopVideo")
 
   @@map("videos")
+}
+
+model Audio {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  filename     String
+  originalName String   @map("original_name")
+  size         BigInt
+  duration     Float?
+  path         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loopAudioItems LoopAudioItem[]
+
+  @@map("audios")
 }
 
 enum VideoStatus {
@@ -54,13 +72,17 @@ model Stream {
   name           String
   streamKeyEnc   String       @map("stream_key_enc")
   status         StreamStatus @default(OFFLINE)
+  mode           StreamMode   @default(PLAYLIST)
   currentVideoId String?      @map("current_video_id")
+  loopVideoId    String?      @map("loop_video_id")
   shuffle        Boolean      @default(false)
   createdAt      DateTime     @default(now()) @map("created_at")
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  currentVideo  Video?         @relation(fields: [currentVideoId], references: [id])
-  playlistItems PlaylistItem[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentVideo   Video?          @relation("CurrentVideo", fields: [currentVideoId], references: [id])
+  loopVideo      Video?          @relation("LoopVideo", fields: [loopVideoId], references: [id])
+  playlistItems  PlaylistItem[]
+  loopAudioItems LoopAudioItem[]
 
   @@map("streams")
 }
@@ -83,4 +105,23 @@ enum StreamStatus {
   ONLINE
   OFFLINE
   ERROR
+}
+
+enum StreamMode {
+  PLAYLIST
+  LOOP
+}
+
+model LoopAudioItem {
+  id        String   @id @default(uuid())
+  streamId  String   @map("stream_id")
+  audioId   String   @map("audio_id")
+  position  Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  audio  Audio  @relation(fields: [audioId], references: [id], onDelete: Cascade)
+
+  @@unique([streamId, position])
+  @@map("loop_audio_items")
 }

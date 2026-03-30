@@ -32,5 +32,20 @@ export const updateStream = (id, data) => api.patch(`/streams/${id}`, data).then
 export const deleteStream = (id) => api.delete(`/streams/${id}`).then(r => r.data);
 export const startStream = (id) => api.post(`/streams/${id}/start`).then(r => r.data);
 export const stopStream = (id) => api.post(`/streams/${id}/stop`).then(r => r.data);
+export const restartStream = (id) => api.post(`/streams/${id}/restart`).then(r => r.data);
 export const updatePlaylist = (id, videoIds) =>
   api.put(`/streams/${id}/playlist`, { videoIds }).then(r => r.data);
+export const updateLoopAudio = (id, audioIds) =>
+  api.put(`/streams/${id}/loop-audio`, { audioIds }).then(r => r.data);
+
+// Audios
+export const getAudios = () => api.get('/audios').then(r => r.data);
+export const uploadAudio = (file, onProgress) => {
+  const fd = new FormData();
+  fd.append('audio', file);
+  return api.post('/audios', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (e) => onProgress?.(Math.round((e.loaded * 100) / e.total)),
+  }).then(r => r.data);
+};
+export const deleteAudio = (id) => api.delete(`/audios/${id}`).then(r => r.data);

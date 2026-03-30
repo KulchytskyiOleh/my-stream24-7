@@ -12,6 +12,7 @@ import fs from 'fs';
 import authRouter from './routes/auth.js';
 import videosRouter from './routes/videos.js';
 import streamsRouter from './routes/streams.js';
+import audiosRouter from './routes/audios.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const prisma = new PrismaClient();
@@ -76,10 +77,16 @@ passport.deserializeUser(async (id, done) => {
 app.use('/auth', authRouter);
 app.use('/api/videos', videosRouter);
 app.use('/api/streams', streamsRouter);
+app.use('/api/audios', audiosRouter);
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+  // Reset stale ONLINE streams left from previous server run
+  await prisma.stream.updateMany({
+    where: { status: 'ONLINE' },
+    data: { status: 'OFFLINE', currentVideoId: null },
+  });
   console.log(`Server running on http://localhost:${PORT}`);
 });

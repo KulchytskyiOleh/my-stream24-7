@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -15,12 +15,12 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, X, Shuffle } from 'lucide-react';
+import { GripVertical, Plus, X, Shuffle, Music, Video, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDuration } from '@/lib/utils';
-import { updatePlaylist, updateStream } from '@/lib/api';
+import { updatePlaylist, updateStream, updateLoopAudio, uploadAudio, deleteAudio } from '@/lib/api';
 
-function SortableItem({ item, onRemove }) {
+function SortableItem({ item, onRemove, label }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   });
@@ -36,9 +36,9 @@ function SortableItem({ item, onRemove }) {
       <button {...attributes} {...listeners} className="text-muted-foreground cursor-grab active:cursor-grabbing">
         <GripVertical size={14} />
       </button>
-      <span className="flex-1 text-sm truncate">{item.video.originalName}</span>
+      <span className="flex-1 text-sm truncate">{label}</span>
       <span className="text-xs text-muted-foreground shrink-0">
-        {formatDuration(item.video.duration)}
+        {formatDuration(item.duration ?? item.video?.duration ?? item.audio?.duration)}
       </span>
       <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => onRemove(item.id)}>
         <X size={12} />
@@ -47,7 +47,24 @@ function SortableItem({ item, onRemove }) {
   );
 }
 
-export default function PlaylistEditor({ stream, videos, onUpdate }) {
+function ModeTab({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+        active
+          ? 'bg-primary text-primary-foreground'
+          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─── Playlist mode ────────────────────────────────────────────────────────────
+
+function PlaylistMode({ stream, videos, onUpdate }) {
   const [items, setItems] = useState(stream.playlistItems ?? []);
   const [saving, setSaving] = useState(false);
 
@@ -67,19 +84,16 @@ export default function PlaylistEditor({ stream, videos, onUpdate }) {
 
   const addVideo = (video) => {
     if (items.some(i => i.video.id === video.id)) return;
-    const newItem = {
+    setItems(prev => [...prev, {
       id: `temp-${video.id}`,
       video,
       streamId: stream.id,
       videoId: video.id,
-      position: items.length,
-    };
-    setItems(prev => [...prev, newItem]);
+      position: prev.length,
+    }]);
   };
 
-  const removeItem = (itemId) => {
-    setItems(prev => prev.filter(i => i.id !== itemId));
-  };
+  const removeItem = (itemId) => setItems(prev => prev.filter(i => i.id !== itemId));
 
   const save = async () => {
     setSaving(true);
@@ -101,7 +115,6 @@ export default function PlaylistEditor({ stream, videos, onUpdate }) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Left: video library */}
       <div>
         <h3 className="text-sm font-medium text-muted-foreground mb-3">Video Library</h3>
         {availableVideos.length === 0 ? (
@@ -121,7 +134,6 @@ export default function PlaylistEditor({ stream, videos, onUpdate }) {
         )}
       </div>
 
-      {/* Right: playlist */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium text-muted-foreground">Playlist ({items.length})</h3>
@@ -143,7 +155,7 @@ export default function PlaylistEditor({ stream, videos, onUpdate }) {
             <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
               <div className="space-y-1 max-h-96 overflow-y-auto">
                 {items.map(item => (
-                  <SortableItem key={item.id} item={item} onRemove={removeItem} />
+                  <SortableItem key={item.id} item={item} label={item.video.originalName} onRemove={removeItem} />
                 ))}
               </div>
             </SortableContext>
@@ -154,6 +166,235 @@ export default function PlaylistEditor({ stream, videos, onUpdate }) {
           {saving ? 'Saving...' : 'Save Playlist'}
         </Button>
       </div>
+    </div>
+  );
+}
+
+// ─── Loop mode ────────────────────────────────────────────────────────────────
+
+function LoopMode({ stream, videos, audios, onUpdate }) {
+  const [selectedVideoId, setSelectedVideoId] = useState(stream.loopVideoId ?? '');
+  const [audioItems, setAudioItems] = useState(stream.loopAudioItems ?? []);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIdx = audioItems.findIndex(i => i.id === active.id);
+      const newIdx = audioItems.findIndex(i => i.id === over.id);
+      setAudioItems(arrayMove(audioItems, oldIdx, newIdx));
+    }
+  };
+
+  const addAudio = (audio) => {
+    if (audioItems.some(i => i.audio.id === audio.id)) return;
+    setAudioItems(prev => [...prev, {
+      id: `temp-${audio.id}`,
+      audio,
+      streamId: stream.id,
+      audioId: audio.id,
+      position: prev.length,
+    }]);
+  };
+
+  const removeAudioItem = (itemId) => setAudioItems(prev => prev.filter(i => i.id !== itemId));
+
+  const handleAudioUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadProgress(0);
+    try {
+      const audio = await uploadAudio(file, setUploadProgress);
+      // Add directly to the list
+      addAudio(audio);
+    } catch (err) {
+      alert(err.response?.data?.error || err.message);
+    } finally {
+      setUploading(false);
+      setUploadProgress(null);
+      e.target.value = '';
+    }
+  };
+
+  const handleDeleteAudio = async (audio) => {
+    if (!confirm(`Delete "${audio.originalName}"?`)) return;
+    await deleteAudio(audio.id);
+    setAudioItems(prev => prev.filter(i => i.audio.id !== audio.id));
+    onUpdate();
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const updates = [];
+      if (selectedVideoId !== stream.loopVideoId) {
+        updates.push(updateStream(stream.id, { loopVideoId: selectedVideoId || null }));
+      }
+      updates.push(updateLoopAudio(stream.id, audioItems.map(i => i.audio.id)));
+      await Promise.all(updates);
+      onUpdate();
+    } catch (err) {
+      alert(err.response?.data?.error || err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const readyVideos = videos.filter(v => v.status === 'READY' || v.status === 'NEEDS_TRANSCODE');
+  const inAudioList = new Set(audioItems.map(i => i.audio.id));
+  const availableAudios = audios.filter(a => !inAudioList.has(a.id));
+
+  return (
+    <div className="space-y-6">
+      {/* Video selector */}
+      <div>
+        <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+          <Video size={13} /> Loop Video
+        </h3>
+        <select
+          value={selectedVideoId}
+          onChange={e => setSelectedVideoId(e.target.value)}
+          className="w-full text-sm bg-background border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring"
+        >
+          <option value="">— Select a video —</option>
+          {readyVideos.map(v => (
+            <option key={v.id} value={v.id}>{v.originalName}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Audio playlist */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left: audio library */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+              <Music size={13} /> Audio Library
+            </h3>
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*,.mp3,.aac,.ogg,.wav,.flac"
+                className="hidden"
+                onChange={handleAudioUpload}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-xs"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                <Upload size={11} />
+                {uploading ? `${uploadProgress ?? 0}%` : 'Upload MP3'}
+              </Button>
+            </div>
+          </div>
+
+          {availableAudios.length === 0 ? (
+            <p className="text-sm text-muted-foreground">All audio files added to playlist</p>
+          ) : (
+            <div className="space-y-1 max-h-64 overflow-y-auto">
+              {availableAudios.map(audio => (
+                <div key={audio.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 group">
+                  <span className="flex-1 text-sm truncate">{audio.originalName}</span>
+                  <span className="text-xs text-muted-foreground">{formatDuration(audio.duration)}</span>
+                  <Button
+                    variant="ghost" size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                    onClick={() => addAudio(audio)}
+                  >
+                    <Plus size={12} />
+                  </Button>
+                  <Button
+                    variant="ghost" size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:text-destructive"
+                    onClick={() => handleDeleteAudio(audio)}
+                  >
+                    <X size={12} />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Right: audio playlist */}
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground mb-2">
+            Audio Playlist ({audioItems.length})
+          </h3>
+
+          {audioItems.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No audio files. Add from the library or upload MP3.</p>
+          ) : (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={audioItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-1 max-h-64 overflow-y-auto">
+                  {audioItems.map(item => (
+                    <SortableItem key={item.id} item={item} label={item.audio.originalName} onRemove={removeAudioItem} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+        </div>
+      </div>
+
+      <Button className="w-full" onClick={save} disabled={saving}>
+        {saving ? 'Saving...' : 'Save Loop Settings'}
+      </Button>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export default function PlaylistEditor({ stream, videos, audios = [], onUpdate }) {
+  const [mode, setMode] = useState(stream.mode ?? 'PLAYLIST');
+  const [switchingMode, setSwitchingMode] = useState(false);
+
+  const handleModeSwitch = async (newMode) => {
+    if (newMode === mode) return;
+    setSwitchingMode(true);
+    try {
+      await updateStream(stream.id, { mode: newMode });
+      setMode(newMode);
+      onUpdate();
+    } catch (err) {
+      alert(err.response?.data?.error || err.message);
+    } finally {
+      setSwitchingMode(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Mode toggle */}
+      <div className="flex items-center gap-2">
+        <ModeTab active={mode === 'PLAYLIST'} onClick={() => handleModeSwitch('PLAYLIST')}>
+          <Video size={13} /> Playlist
+        </ModeTab>
+        <ModeTab active={mode === 'LOOP'} onClick={() => handleModeSwitch('LOOP')}>
+          <Music size={13} /> Loop + Audio
+        </ModeTab>
+      </div>
+
+      {mode === 'PLAYLIST' ? (
+        <PlaylistMode stream={stream} videos={videos} onUpdate={onUpdate} />
+      ) : (
+        <LoopMode stream={stream} videos={videos} audios={audios} onUpdate={onUpdate} />
+      )}
     </div>
   );
 }

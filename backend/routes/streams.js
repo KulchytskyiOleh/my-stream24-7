@@ -2,22 +2,29 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth } from '../middleware/auth.js';
 import { encrypt, decrypt } from '../services/encryption.js';
-import { startStream, stopStream, isStreamRunning, updateStreamPlaylist } from '../services/ffmpeg.js';
+import { startStream, stopStream, restartStream, isStreamRunning, updateStreamPlaylist } from '../services/ffmpeg.js';
 
 const prisma = new PrismaClient();
 const router = Router();
+
+const streamInclude = {
+  currentVideo: { select: { id: true, originalName: true } },
+  loopVideo: { select: { id: true, originalName: true, duration: true, status: true } },
+  playlistItems: {
+    include: { video: { select: { id: true, originalName: true, duration: true } } },
+    orderBy: { position: 'asc' },
+  },
+  loopAudioItems: {
+    include: { audio: { select: { id: true, originalName: true, duration: true } } },
+    orderBy: { position: 'asc' },
+  },
+};
 
 // List user's streams
 router.get('/', requireAuth, async (req, res) => {
   const streams = await prisma.stream.findMany({
     where: { userId: req.user.id },
-    include: {
-      currentVideo: { select: { id: true, originalName: true } },
-      playlistItems: {
-        include: { video: { select: { id: true, originalName: true, duration: true } } },
-        orderBy: { position: 'asc' },
-      },
-    },
+    include: streamInclude,
     orderBy: { createdAt: 'desc' },
   });
 
@@ -28,13 +35,7 @@ router.get('/', requireAuth, async (req, res) => {
 router.get('/:id', requireAuth, async (req, res) => {
   const stream = await prisma.stream.findFirst({
     where: { id: req.params.id, userId: req.user.id },
-    include: {
-      currentVideo: { select: { id: true, originalName: true } },
-      playlistItems: {
-        include: { video: { select: { id: true, originalName: true, duration: true } } },
-        orderBy: { position: 'asc' },
-      },
-    },
+    include: streamInclude,
   });
   if (!stream) return res.status(404).json({ error: 'Stream not found' });
   res.json(maskStreamKey(stream));
@@ -69,6 +70,20 @@ router.patch('/:id', requireAuth, async (req, res) => {
   if (req.body.name !== undefined) data.name = req.body.name.trim();
   if (req.body.streamKey !== undefined) data.streamKeyEnc = encrypt(req.body.streamKey.trim());
   if (req.body.shuffle !== undefined) data.shuffle = Boolean(req.body.shuffle);
+  if (req.body.mode !== undefined && ['PLAYLIST', 'LOOP'].includes(req.body.mode)) {
+    data.mode = req.body.mode;
+  }
+  if (req.body.loopVideoId !== undefined) {
+    if (req.body.loopVideoId === null) {
+      data.loopVideoId = null;
+    } else {
+      const video = await prisma.video.findFirst({
+        where: { id: req.body.loopVideoId, userId: req.user.id },
+      });
+      if (!video) return res.status(400).json({ error: 'Video not found' });
+      data.loopVideoId = video.id;
+    }
+  }
 
   const updated = await prisma.stream.update({ where: { id: stream.id }, data });
   res.json(maskStreamKey(updated));
@@ -115,6 +130,21 @@ router.post('/:id/stop', requireAuth, async (req, res) => {
   res.json({ ok: true, status: 'OFFLINE' });
 });
 
+// Restart stream (stop + immediate start, no YouTube signal drop)
+router.post('/:id/restart', requireAuth, async (req, res) => {
+  const stream = await prisma.stream.findFirst({
+    where: { id: req.params.id, userId: req.user.id },
+  });
+  if (!stream) return res.status(404).json({ error: 'Stream not found' });
+
+  try {
+    await restartStream(stream.id);
+    res.json({ ok: true, status: 'ONLINE' });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Update playlist
 router.put('/:id/playlist', requireAuth, async (req, res) => {
   const stream = await prisma.stream.findFirst({
@@ -149,6 +179,40 @@ router.put('/:id/playlist', requireAuth, async (req, res) => {
 
   // Update in-memory playlist if stream is running (no interruption)
   await updateStreamPlaylist(stream.id);
+
+  res.json({ ok: true });
+});
+
+// Update loop audio playlist
+router.put('/:id/loop-audio', requireAuth, async (req, res) => {
+  const stream = await prisma.stream.findFirst({
+    where: { id: req.params.id, userId: req.user.id },
+  });
+  if (!stream) return res.status(404).json({ error: 'Stream not found' });
+
+  const { audioIds } = req.body;
+  if (!Array.isArray(audioIds)) {
+    return res.status(400).json({ error: 'audioIds must be an array' });
+  }
+
+  // Verify all audios belong to this user
+  const audios = await prisma.audio.findMany({
+    where: { id: { in: audioIds }, userId: req.user.id },
+  });
+  if (audios.length !== audioIds.length) {
+    return res.status(400).json({ error: 'Some audio files not found' });
+  }
+
+  await prisma.$transaction([
+    prisma.loopAudioItem.deleteMany({ where: { streamId: stream.id } }),
+    prisma.loopAudioItem.createMany({
+      data: audioIds.map((audioId, position) => ({
+        streamId: stream.id,
+        audioId,
+        position,
+      })),
+    }),
+  ]);
 
   res.json({ ok: true });
 });

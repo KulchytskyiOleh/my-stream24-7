@@ -1,13 +1,18 @@
 import { useState } from 'react';
-import { Play, Square, Pencil, Trash2, ChevronDown, ChevronUp, Radio } from 'lucide-react';
+import { Play, Square, Pencil, Trash2, ChevronDown, ChevronUp, Radio, RotateCcw, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import PlaylistEditor from './PlaylistEditor';
-import { startStream, stopStream, deleteStream } from '@/lib/api';
+import { startStream, stopStream, restartStream, deleteStream, updateStream } from '@/lib/api';
 
-export default function StreamSlot({ stream, videos, onRefresh }) {
+export default function StreamSlot({ stream, videos, audios, onRefresh }) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+  const [editingKey, setEditingKey] = useState(false);
+  const [newKey, setNewKey] = useState('');
+  const [savingKey, setSavingKey] = useState(false);
 
   const handleToggle = async () => {
     setLoading(true);
@@ -22,6 +27,37 @@ export default function StreamSlot({ stream, videos, onRefresh }) {
       alert(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRestart = async () => {
+    setRestarting(true);
+    try {
+      await restartStream(stream.id);
+      onRefresh();
+    } catch (err) {
+      alert(err.response?.data?.error || err.message);
+    } finally {
+      setRestarting(false);
+    }
+  };
+
+  const handleEditKey = () => {
+    setNewKey('');
+    setEditingKey(true);
+  };
+
+  const handleSaveKey = async () => {
+    if (!newKey.trim()) return;
+    setSavingKey(true);
+    try {
+      await updateStream(stream.id, { streamKey: newKey.trim() });
+      setEditingKey(false);
+      onRefresh();
+    } catch (err) {
+      alert(err.response?.data?.error || err.message);
+    } finally {
+      setSavingKey(false);
     }
   };
 
@@ -41,14 +77,48 @@ export default function StreamSlot({ stream, videos, onRefresh }) {
               <h3 className="font-medium truncate">{stream.name}</h3>
               {stream.currentVideo && stream.status === 'ONLINE' && (
                 <p className="text-xs text-muted-foreground truncate mt-0.5">
-                  Now playing: {stream.currentVideo.originalName}
+                  {stream.mode === 'LOOP' ? 'Looping:' : 'Now playing:'} {stream.currentVideo.originalName}
                 </p>
               )}
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {editingKey && (
+              <div className="flex items-center gap-1">
+                <Input
+                  type="password"
+                  placeholder="New stream key"
+                  value={newKey}
+                  onChange={e => setNewKey(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSaveKey(); if (e.key === 'Escape') setEditingKey(false); }}
+                  className="h-8 w-48 text-xs"
+                  autoFocus
+                />
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500" onClick={handleSaveKey} disabled={savingKey}>
+                  <Check size={14} />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingKey(false)}>
+                  <X size={14} />
+                </Button>
+              </div>
+            )}
+
             <Badge status={stream.status} />
+
+            {stream.status === 'ONLINE' && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleRestart}
+                disabled={restarting}
+                className="gap-1.5"
+                title="Restart stream"
+              >
+                <RotateCcw size={12} className={restarting ? 'animate-spin' : ''} />
+                {restarting ? 'Restarting...' : 'Restart'}
+              </Button>
+            )}
 
             <Button
               size="sm"
@@ -77,6 +147,16 @@ export default function StreamSlot({ stream, videos, onRefresh }) {
             <Button
               variant="ghost"
               size="icon"
+              className="h-8 w-8 text-muted-foreground"
+              onClick={handleEditKey}
+              title="Edit stream key"
+            >
+              <Pencil size={14} />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-destructive"
               onClick={handleDelete}
               title="Delete stream"
@@ -89,7 +169,7 @@ export default function StreamSlot({ stream, videos, onRefresh }) {
 
       {expanded && (
         <div className="border-t border-border p-4">
-          <PlaylistEditor stream={stream} videos={videos} onUpdate={onRefresh} />
+          <PlaylistEditor stream={stream} videos={videos} audios={audios} onUpdate={onRefresh} />
         </div>
       )}
     </div>
