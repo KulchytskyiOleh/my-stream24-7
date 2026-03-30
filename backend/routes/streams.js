@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth } from '../middleware/auth.js';
 import { encrypt, decrypt } from '../services/encryption.js';
-import { startStream, stopStream, restartStream, isStreamRunning, updateStreamPlaylist } from '../services/ffmpeg.js';
+import { startStream, stopStream, restartStream, isStreamRunning, updateStreamPlaylist, getStreamStats } from '../services/ffmpeg.js';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -28,7 +28,7 @@ router.get('/', requireAuth, async (req, res) => {
     orderBy: { createdAt: 'desc' },
   });
 
-  res.json(streams.map(maskStreamKey));
+  res.json(streams.map(s => ({ ...maskStreamKey(s), ...getStreamStats(s.id) })));
 });
 
 // Get single stream

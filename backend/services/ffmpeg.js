@@ -7,6 +7,15 @@ const prisma = new PrismaClient();
 
 // Map of streamId -> { process, currentIndex, playlist, stopped, mode, concatPath? }
 const activeStreams = new Map();
+const streamBitrates = new Map();  // streamId -> kbits/s
+const streamStartTimes = new Map(); // streamId -> Date.now()
+
+export function getStreamStats(streamId) {
+  return {
+    bitrate: streamBitrates.get(streamId) ?? null,
+    startedAt: streamStartTimes.get(streamId) ?? null,
+  };
+}
 
 export async function startStream(streamId) {
   if (activeStreams.has(streamId)) {
@@ -51,6 +60,7 @@ async function _startPlaylistStream(streamId, stream) {
 
   const state = { process: null, currentIndex: 0, playlist, streamKey, stopped: false, mode: 'PLAYLIST' };
   activeStreams.set(streamId, state);
+  streamStartTimes.set(streamId, Date.now());
 
   await playNext(streamId);
 }
@@ -86,7 +96,7 @@ async function _startLoopStream(streamId, stream) {
     '-map', '1:a',
     '-c:v', 'copy',
     '-c:a', 'aac',
-    '-b:a', '128k',
+    '-b:a', '256k',
     '-f', 'flv',
     rtmpUrl,
   ];
@@ -94,8 +104,12 @@ async function _startLoopStream(streamId, stream) {
   const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] });
   const state = { process: proc, stopped: false, mode: 'LOOP', concatPath };
   activeStreams.set(streamId, state);
+  streamStartTimes.set(streamId, Date.now());
 
-  proc.stderr.on('data', () => {});
+  proc.stderr.on('data', (data) => {
+    const match = data.toString().match(/bitrate=\s*([\d.]+)kbits\/s/);
+    if (match) streamBitrates.set(streamId, parseFloat(match[1]));
+  });
 
   proc.on('close', async () => {
     if (state.stopped) return;
@@ -148,7 +162,10 @@ async function playNext(streamId) {
   const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] });
   state.process = proc;
 
-  proc.stderr.on('data', () => {});
+  proc.stderr.on('data', (data) => {
+    const match = data.toString().match(/bitrate=\s*([\d.]+)kbits\/s/);
+    if (match) streamBitrates.set(streamId, parseFloat(match[1]));
+  });
 
   proc.on('close', async () => {
     if (state.stopped) return;
@@ -179,6 +196,8 @@ export async function stopStream(streamId, status = 'OFFLINE') {
   }
 
   activeStreams.delete(streamId);
+  streamBitrates.delete(streamId);
+  streamStartTimes.delete(streamId);
 
   await prisma.stream.update({
     where: { id: streamId },

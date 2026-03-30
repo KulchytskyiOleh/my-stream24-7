@@ -6,6 +6,14 @@ import { Input } from '@/components/ui/input';
 import PlaylistEditor from './PlaylistEditor';
 import { startStream, stopStream, restartStream, deleteStream, updateStream } from '@/lib/api';
 
+function formatUptime(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
 export default function StreamSlot({ stream, videos, audios, onRefresh }) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -78,6 +86,13 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
               {stream.currentVideo && stream.status === 'ONLINE' && (
                 <p className="text-xs text-muted-foreground truncate mt-0.5">
                   {stream.mode === 'LOOP' ? 'Looping:' : 'Now playing:'} {stream.currentVideo.originalName}
+                </p>
+              )}
+              {stream.status === 'ONLINE' && (stream.bitrate || stream.startedAt) && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {stream.bitrate ? `${(stream.bitrate / 1000).toFixed(1)} Mbps` : ''}
+                  {stream.bitrate && stream.startedAt ? ' · ' : ''}
+                  {stream.startedAt ? formatUptime(Date.now() - stream.startedAt) : ''}
                 </p>
               )}
             </div>

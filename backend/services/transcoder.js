@@ -44,9 +44,10 @@ export async function transcodeVideo(videoId) {
     await fs.rename(outputPath, inputPath);
 
     const duration = await getVideoDuration(inputPath);
+    const newBitrate = await getVideoBitrate(inputPath);
 
     transcodingProgress.set(videoId, 100);
-    await prisma.video.update({ where: { id: videoId }, data: { status: 'READY', duration } });
+    await prisma.video.update({ where: { id: videoId }, data: { status: 'READY', duration, ...(newBitrate && { bitrate: newBitrate }) } });
     transcodingProgress.delete(videoId);
   } catch (err) {
     console.error(`Transcoding failed for video ${videoId}:`, err.message);
@@ -126,6 +127,27 @@ function transcode(inputPath, outputPath, totalDuration, videoId) {
     });
 
     proc.on('error', reject);
+  });
+}
+
+function getVideoBitrate(filePath) {
+  return new Promise((resolve) => {
+    const proc = spawn('ffprobe', [
+      '-v', 'quiet',
+      '-print_format', 'json',
+      '-show_format',
+      filePath,
+    ]);
+    let output = '';
+    proc.stdout.on('data', (d) => (output += d));
+    proc.on('close', () => {
+      try {
+        resolve(parseInt(JSON.parse(output).format?.bit_rate) || null);
+      } catch {
+        resolve(null);
+      }
+    });
+    proc.on('error', () => resolve(null));
   });
 }
 
