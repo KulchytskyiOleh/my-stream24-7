@@ -28,6 +28,7 @@ model Video {
   originalName String      @map("original_name")
   size         BigInt
   duration     Float?
+  bitrate      Int?
   path         String
   status       VideoStatus @default(PROCESSING)
   createdAt    DateTime    @default(now()) @map("created_at")

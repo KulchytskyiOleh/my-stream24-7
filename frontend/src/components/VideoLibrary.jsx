@@ -7,6 +7,11 @@ import { formatBytes, formatDuration } from '@/lib/utils';
 import { deleteVideo, transcodeVideo } from '@/lib/api';
 import api from '@/lib/api';
 
+function formatBitrate(bps) {
+  if (!bps) return null;
+  return `${Math.round(bps / 1_000_000)} Mbps`;
+}
+
 export default function VideoLibrary({ videos, onRefresh }) {
   const [uploading, setUploading] = useState([]);
   const [transcodingPct, setTranscodingPct] = useState({});
@@ -150,14 +155,14 @@ export default function VideoLibrary({ videos, onRefresh }) {
                 </div>
               ) : video.status === 'NEEDS_TRANSCODE' ? (
                 <div>
-                  <p className="text-xs text-muted-foreground">{formatBytes(video.size)} · {formatDuration(video.duration)}</p>
+                  <p className="text-xs text-muted-foreground">{formatBytes(video.size)} · {formatDuration(video.duration)}{video.bitrate ? ` · ${formatBitrate(video.bitrate)}` : ''}</p>
                   <p className="text-xs text-yellow-500">Keyframe interval too large for YouTube</p>
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">
                   {video.status === 'ERROR'
                     ? 'Processing failed'
-                    : `${formatBytes(video.size)} · ${formatDuration(video.duration)}`
+                    : `${formatBytes(video.size)} · ${formatDuration(video.duration)}${video.bitrate ? ` · ${formatBitrate(video.bitrate)}` : ''}`
                   }
                 </p>
               )}

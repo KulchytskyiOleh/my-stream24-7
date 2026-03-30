@@ -22,12 +22,14 @@ const uploadLimiter = rateLimit({
   message: { error: 'Too many uploads, try again later' },
 });
 
-function getVideoDuration(filePath) {
+function getVideoInfo(filePath) {
   return new Promise((resolve) => {
     const proc = spawn('ffprobe', [
       '-v', 'quiet',
       '-print_format', 'json',
       '-show_format',
+      '-show_streams',
+      '-select_streams', 'v:0',
       filePath,
     ]);
     let output = '';
@@ -35,12 +37,14 @@ function getVideoDuration(filePath) {
     proc.on('close', () => {
       try {
         const data = JSON.parse(output);
-        resolve(parseFloat(data.format?.duration) || null);
+        const duration = parseFloat(data.format?.duration) || null;
+        const bitrate = parseInt(data.streams?.[0]?.bit_rate) || parseInt(data.format?.bit_rate) || null;
+        resolve({ duration, bitrate });
       } catch {
-        resolve(null);
+        resolve({ duration: null, bitrate: null });
       }
     });
-    proc.on('error', () => resolve(null));
+    proc.on('error', () => resolve({ duration: null, bitrate: null }));
   });
 }
 
@@ -53,7 +57,7 @@ const tusServer = new TusServer({
       const originalName = decodeURIComponent(upload.metadata?.filename || 'video');
       const filePath = path.join(uploadDir, upload.id);
       const size = upload.size;
-      const duration = await getVideoDuration(filePath);
+      const { duration, bitrate } = await getVideoInfo(filePath);
 
       const video = await prisma.video.create({
         data: {
@@ -62,6 +66,7 @@ const tusServer = new TusServer({
           originalName,
           size: BigInt(size),
           duration,
+          bitrate,
           path: filePath,
           status: 'PROCESSING',
         },
@@ -101,7 +106,7 @@ router.get('/', requireAuth, async (req, res) => {
   const videos = await prisma.video.findMany({
     where: { userId: req.user.id },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, originalName: true, size: true, duration: true, status: true, createdAt: true },
+    select: { id: true, originalName: true, size: true, duration: true, bitrate: true, status: true, createdAt: true },
   });
   res.json(videos.map(v => ({ ...v, size: Number(v.size) })));
 });
