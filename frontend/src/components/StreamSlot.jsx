@@ -26,7 +26,7 @@ function formatRelative(isoString) {
   return `${mins}m ${suffix}`;
 }
 
-const inputCls = 'text-sm bg-background border border-border rounded px-2 py-1 text-foreground';
+const inputCls = 'h-8 text-sm bg-muted border border-border rounded-md px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer disabled:opacity-40';
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
 
@@ -48,16 +48,20 @@ function DateTimeRow({ value, onChange, label = 'Start at' }) {
         type="date"
         value={date}
         onChange={e => update(e.target.value, hh, mm)}
-        className={inputCls}
+        className={`${inputCls} accent-primary`}
       />
       <select value={hh} onChange={e => update(date, e.target.value, mm)} className={inputCls} disabled={!date}>
         {HOURS.map(h => <option key={h}>{h}</option>)}
       </select>
-      <span className="text-muted-foreground">:</span>
+      <span className="font-medium text-foreground">:</span>
       <select value={mm} onChange={e => update(date, hh, e.target.value)} className={inputCls} disabled={!date}>
         {MINUTES.map(m => <option key={m}>{m}</option>)}
       </select>
-      {value && <span className="text-xs text-muted-foreground">{formatRelative(new Date(value).toISOString())}</span>}
+      {value && (
+        <span className="text-xs text-muted-foreground bg-muted rounded px-1.5 py-0.5">
+          {formatRelative(new Date(value).toISOString())}
+        </span>
+      )}
       {value && (
         <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground" onClick={() => onChange('')}>
           <X size={12} />
@@ -288,7 +292,9 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
 
       {scheduleOpen && (
         <div className="border-t border-border p-4 bg-muted/30">
-          <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Schedule</p>
+          <p className="text-xs font-semibold text-foreground mb-3 uppercase tracking-wider flex items-center gap-1.5">
+            <Clock size={12} className="text-muted-foreground" /> Schedule
+          </p>
           <div className="space-y-2">
             <DateTimeRow value={schedStart} onChange={setSchedStart} />
             <DateTimeRow value={schedStop} onChange={setSchedStop} label="Stop at" />
