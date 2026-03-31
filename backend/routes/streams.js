@@ -73,6 +73,12 @@ router.patch('/:id', requireAuth, async (req, res) => {
   if (req.body.mode !== undefined && ['PLAYLIST', 'LOOP'].includes(req.body.mode)) {
     data.mode = req.body.mode;
   }
+  if (req.body.scheduleStart !== undefined) {
+    data.scheduleStart = req.body.scheduleStart ? new Date(req.body.scheduleStart) : null;
+  }
+  if (req.body.scheduleStop !== undefined) {
+    data.scheduleStop = req.body.scheduleStop ? new Date(req.body.scheduleStop) : null;
+  }
   if (req.body.loopVideoId !== undefined) {
     if (req.body.loopVideoId === null) {
       data.loopVideoId = null;

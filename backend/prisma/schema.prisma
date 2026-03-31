@@ -76,6 +76,8 @@ model Stream {
   currentVideoId String?      @map("current_video_id")
   loopVideoId    String?      @map("loop_video_id")
   shuffle        Boolean      @default(false)
+  scheduleStart  DateTime?    @map("schedule_start")
+  scheduleStop   DateTime?    @map("schedule_stop")
   createdAt      DateTime     @default(now()) @map("created_at")
 
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)

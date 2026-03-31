@@ -13,6 +13,7 @@ import authRouter from './routes/auth.js';
 import videosRouter from './routes/videos.js';
 import streamsRouter from './routes/streams.js';
 import audiosRouter from './routes/audios.js';
+import { startScheduler } from './services/scheduler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const prisma = new PrismaClient();
@@ -88,5 +89,6 @@ app.listen(PORT, async () => {
     where: { status: 'ONLINE' },
     data: { status: 'OFFLINE', currentVideoId: null },
   });
+  startScheduler();
   console.log(`Server running on http://localhost:${PORT}`);
 });
