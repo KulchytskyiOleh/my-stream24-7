@@ -240,6 +240,7 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
               <span className="text-sm w-20 shrink-0">Start at</span>
               <input
                 type="datetime-local"
+                lang="en-GB"
                 value={schedStart}
                 onChange={e => setSchedStart(e.target.value)}
                 className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground"
@@ -257,6 +258,7 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
               <span className="text-sm w-20 shrink-0">Stop at</span>
               <input
                 type="datetime-local"
+                lang="en-GB"
                 value={schedStop}
                 onChange={e => setSchedStop(e.target.value)}
                 className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground"
