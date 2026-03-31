@@ -236,13 +236,20 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
         <div className="border-t border-border p-4 bg-muted/30">
           <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Schedule</p>
           <div className="space-y-2">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <span className="text-sm w-20 shrink-0">Start at</span>
               <input
-                type="datetime-local"
-                lang="en-GB"
-                value={schedStart}
-                onChange={e => setSchedStart(e.target.value)}
+                type="date"
+                lang="uk"
+                value={schedStart.split('T')[0] || ''}
+                onChange={e => setSchedStart(e.target.value + 'T' + (schedStart.split('T')[1] || '00:00'))}
+                className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground"
+              />
+              <input
+                type="time"
+                lang="uk"
+                value={schedStart.split('T')[1] || ''}
+                onChange={e => setSchedStart((schedStart.split('T')[0] || '') + 'T' + e.target.value)}
                 className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground"
               />
               {schedStart && (
@@ -254,13 +261,20 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
                 </Button>
               )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <span className="text-sm w-20 shrink-0">Stop at</span>
               <input
-                type="datetime-local"
-                lang="en-GB"
-                value={schedStop}
-                onChange={e => setSchedStop(e.target.value)}
+                type="date"
+                lang="uk"
+                value={schedStop.split('T')[0] || ''}
+                onChange={e => setSchedStop(e.target.value + 'T' + (schedStop.split('T')[1] || '00:00'))}
+                className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground"
+              />
+              <input
+                type="time"
+                lang="uk"
+                value={schedStop.split('T')[1] || ''}
+                onChange={e => setSchedStop((schedStop.split('T')[0] || '') + 'T' + e.target.value)}
                 className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground"
               />
               {schedStop && (
