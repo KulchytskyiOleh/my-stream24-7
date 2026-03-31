@@ -69,10 +69,11 @@ function getAudioMeta(filePath) {
 router.post('/', requireAuth, uploadLimiter, upload.single('audio'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No audio file provided' });
 
+  const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
   const filePath = path.join(uploadDir, req.file.filename);
 
   const existing = await prisma.audio.findFirst({
-    where: { userId: req.user.id, originalName: req.file.originalname, size: BigInt(req.file.size) },
+    where: { userId: req.user.id, originalName, size: BigInt(req.file.size) },
   });
   if (existing) {
     await fs.unlink(filePath).catch(() => {});
@@ -85,7 +86,7 @@ router.post('/', requireAuth, uploadLimiter, upload.single('audio'), async (req,
     data: {
       userId: req.user.id,
       filename: req.file.filename,
-      originalName: req.file.originalname,
+      originalName,
       size: BigInt(req.file.size),
       duration,
       bitrate,
