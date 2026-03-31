@@ -135,6 +135,19 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
   };
 
   const handleSaveSchedule = async () => {
+    const now = Date.now();
+    if (schedStart && new Date(schedStart) <= now) {
+      alert('Start time must be in the future');
+      return;
+    }
+    if (schedStop && new Date(schedStop) <= now) {
+      alert('Stop time must be in the future');
+      return;
+    }
+    if (schedStart && schedStop && new Date(schedStop) <= new Date(schedStart)) {
+      alert('Stop time must be after start time');
+      return;
+    }
     setSavingSchedule(true);
     try {
       await updateStream(stream.id, {
