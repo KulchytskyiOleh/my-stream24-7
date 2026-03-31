@@ -9,7 +9,7 @@ const router = Router();
 
 const streamInclude = {
   currentVideo: { select: { id: true, originalName: true } },
-  loopVideo: { select: { id: true, originalName: true, duration: true, status: true } },
+  loopVideo: { select: { id: true, originalName: true, duration: true, status: true, size: true, bitrate: true, width: true, height: true } },
   playlistItems: {
     include: { video: { select: { id: true, originalName: true, duration: true } } },
     orderBy: { position: 'asc' },
@@ -70,6 +70,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
   if (req.body.name !== undefined) data.name = req.body.name.trim();
   if (req.body.streamKey !== undefined) data.streamKeyEnc = encrypt(req.body.streamKey.trim());
   if (req.body.shuffle !== undefined) data.shuffle = Boolean(req.body.shuffle);
+  if (req.body.audioShuffle !== undefined) data.audioShuffle = Boolean(req.body.audioShuffle);
   if (req.body.mode !== undefined && ['PLAYLIST', 'LOOP'].includes(req.body.mode)) {
     data.mode = req.body.mode;
   }
@@ -225,6 +226,9 @@ router.put('/:id/loop-audio', requireAuth, async (req, res) => {
 
 function maskStreamKey(stream) {
   const { streamKeyEnc, ...rest } = stream;
+  if (rest.loopVideo?.size != null) {
+    rest.loopVideo = { ...rest.loopVideo, size: Number(rest.loopVideo.size) };
+  }
   return rest;
 }
 

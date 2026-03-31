@@ -74,7 +74,10 @@ async function _startLoopStream(streamId, stream) {
 
   // Write concat file for audio playlist
   const concatPath = `/tmp/stream-${streamId}-audio.txt`;
-  const concatContent = stream.loopAudioItems
+  const audioItems = stream.audioShuffle
+    ? shuffleArray([...stream.loopAudioItems])
+    : [...stream.loopAudioItems];
+  const concatContent = audioItems
     .map(item => `file '${item.audio.path}'`)
     .join('\n');
   await fs.writeFile(concatPath, concatContent);

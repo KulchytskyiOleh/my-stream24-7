@@ -30,6 +30,8 @@ model Video {
   size         BigInt
   duration     Float?
   bitrate      Int?
+  width        Int?
+  height       Int?
   path         String
   status       VideoStatus @default(PROCESSING)
   createdAt    DateTime    @default(now()) @map("created_at")
@@ -77,6 +79,7 @@ model Stream {
   currentVideoId String?      @map("current_video_id")
   loopVideoId    String?      @map("loop_video_id")
   shuffle        Boolean      @default(false)
+  audioShuffle   Boolean      @default(false)  @map("audio_shuffle")
   scheduleStart  DateTime?    @map("schedule_start")
   scheduleStop   DateTime?    @map("schedule_stop")
   createdAt      DateTime     @default(now()) @map("created_at")

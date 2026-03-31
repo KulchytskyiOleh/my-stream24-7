@@ -39,12 +39,14 @@ function getVideoInfo(filePath) {
         const data = JSON.parse(output);
         const duration = parseFloat(data.format?.duration) || null;
         const bitrate = parseInt(data.streams?.[0]?.bit_rate) || parseInt(data.format?.bit_rate) || null;
-        resolve({ duration, bitrate });
+        const width   = parseInt(data.streams?.[0]?.width)   || null;
+        const height  = parseInt(data.streams?.[0]?.height)  || null;
+        resolve({ duration, bitrate, width, height });
       } catch {
-        resolve({ duration: null, bitrate: null });
+        resolve({ duration: null, bitrate: null, width: null, height: null });
       }
     });
-    proc.on('error', () => resolve({ duration: null, bitrate: null }));
+    proc.on('error', () => resolve({ duration: null, bitrate: null, width: null, height: null }));
   });
 }
 
@@ -57,7 +59,7 @@ const tusServer = new TusServer({
       const originalName = decodeURIComponent(upload.metadata?.filename || 'video');
       const filePath = path.join(uploadDir, upload.id);
       const size = upload.size;
-      const { duration, bitrate } = await getVideoInfo(filePath);
+      const { duration, bitrate, width, height } = await getVideoInfo(filePath);
 
       const video = await prisma.video.create({
         data: {
@@ -67,6 +69,8 @@ const tusServer = new TusServer({
           size: BigInt(size),
           duration,
           bitrate,
+          width,
+          height,
           path: filePath,
           status: 'PROCESSING',
         },
@@ -106,7 +110,7 @@ router.get('/', requireAuth, async (req, res) => {
   const videos = await prisma.video.findMany({
     where: { userId: req.user.id },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, originalName: true, size: true, duration: true, bitrate: true, status: true, createdAt: true },
+    select: { id: true, originalName: true, size: true, duration: true, bitrate: true, width: true, height: true, status: true, createdAt: true },
   });
   res.json(videos.map(v => ({ ...v, size: Number(v.size) })));
 });

@@ -17,7 +17,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Plus, X, Shuffle, Music, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatDuration } from '@/lib/utils';
+import { formatDuration, formatBytes } from '@/lib/utils';
 import { updatePlaylist, updateStream, updateLoopAudio } from '@/lib/api';
 
 function SortableItem({ item, onRemove, label }) {
@@ -221,9 +221,16 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
     }
   };
 
+  const toggleAudioShuffle = async () => {
+    await updateStream(stream.id, { audioShuffle: !stream.audioShuffle });
+    onUpdate();
+  };
+
   const readyVideos = videos.filter(v => v.status === 'READY' || v.status === 'NEEDS_TRANSCODE');
+  const selectedVideo = videos.find(v => v.id === selectedVideoId) ?? null;
   const inAudioList = new Set(audioItems.map(i => i.audio.id));
   const availableAudios = audios.filter(a => !inAudioList.has(a.id));
+  const totalAudioDuration = audioItems.reduce((sum, i) => sum + (i.audio?.duration ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -242,6 +249,13 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
             <option key={v.id} value={v.id}>{v.originalName}</option>
           ))}
         </select>
+        {selectedVideo && (
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            {selectedVideo.width && selectedVideo.height ? `${selectedVideo.width}×${selectedVideo.height} · ` : ''}
+            {formatDuration(selectedVideo.duration)}
+            {selectedVideo.size ? ` · ${formatBytes(selectedVideo.size)}` : ''}
+          </p>
+        )}
       </div>
 
       {/* Audio playlist */}
@@ -275,9 +289,20 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
 
         {/* Right: audio playlist */}
         <div>
-          <h3 className="text-sm font-medium text-muted-foreground mb-2">
-            Audio Playlist ({audioItems.length})
-          </h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              Audio Playlist ({audioItems.length}){totalAudioDuration > 0 && <span className="ml-1.5 font-normal">{formatDuration(totalAudioDuration)}</span>}
+            </h3>
+            <button
+              onClick={toggleAudioShuffle}
+              className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-colors ${
+                stream.audioShuffle ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Shuffle size={12} />
+              Shuffle
+            </button>
+          </div>
 
           {audioItems.length === 0 ? (
             <p className="text-sm text-muted-foreground">No audio files. Add from the library.</p>

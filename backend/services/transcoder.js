@@ -45,9 +45,13 @@ export async function transcodeVideo(videoId) {
 
     const duration = await getVideoDuration(inputPath);
     const newBitrate = await getVideoBitrate(inputPath);
+    const { width, height } = await getVideoDimensions(inputPath);
 
     transcodingProgress.set(videoId, 100);
-    await prisma.video.update({ where: { id: videoId }, data: { status: 'READY', duration, ...(newBitrate && { bitrate: newBitrate }) } });
+    await prisma.video.update({
+      where: { id: videoId },
+      data: { status: 'READY', duration, ...(newBitrate && { bitrate: newBitrate }), ...(width && { width }), ...(height && { height }) },
+    });
     transcodingProgress.delete(videoId);
   } catch (err) {
     console.error(`Transcoding failed for video ${videoId}:`, err.message);
@@ -148,6 +152,29 @@ function getVideoBitrate(filePath) {
       }
     });
     proc.on('error', () => resolve(null));
+  });
+}
+
+function getVideoDimensions(filePath) {
+  return new Promise((resolve) => {
+    const proc = spawn('ffprobe', [
+      '-v', 'quiet',
+      '-print_format', 'json',
+      '-show_streams',
+      '-select_streams', 'v:0',
+      filePath,
+    ]);
+    let output = '';
+    proc.stdout.on('data', (d) => (output += d));
+    proc.on('close', () => {
+      try {
+        const stream = JSON.parse(output).streams?.[0];
+        resolve({ width: stream?.width ?? null, height: stream?.height ?? null });
+      } catch {
+        resolve({ width: null, height: null });
+      }
+    });
+    proc.on('error', () => resolve({ width: null, height: null }));
   });
 }
 
