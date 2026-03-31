@@ -5,12 +5,25 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import PlaylistEditor from './PlaylistEditor';
 import { startStream, stopStream, restartStream, deleteStream, updateStream } from '@/lib/api';
+import DateTimePicker from 'react-datetime-picker';
+import 'react-datetime-picker/dist/DateTimePicker.css';
+import 'react-calendar/dist/Calendar.css';
 
 function toDatetimeLocal(isoString) {
   if (!isoString) return '';
   const d = new Date(isoString);
   const pad = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function strToDate(str) {
+  return str ? new Date(str) : null;
+}
+
+function dateToStr(date) {
+  if (!date) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function formatRelative(isoString) {
@@ -236,22 +249,16 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
         <div className="border-t border-border p-4 bg-muted/30">
           <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Schedule</p>
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <span className="text-sm w-20 shrink-0">Start at</span>
-              <input
-                type="date"
-                lang="uk"
-                value={schedStart.split('T')[0] || ''}
-                onChange={e => setSchedStart(e.target.value + 'T' + (schedStart.split('T')[1] || '00:00'))}
-                className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground"
-              />
-              <input
-                type="text"
-                placeholder="HH:MM"
-                maxLength={5}
-                value={schedStart.split('T')[1] || ''}
-                onChange={e => setSchedStart((schedStart.split('T')[0] || '') + 'T' + e.target.value)}
-                className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground w-20"
+              <DateTimePicker
+                value={strToDate(schedStart)}
+                onChange={d => setSchedStart(dateToStr(d))}
+                format="dd.MM.y HH:mm"
+                disableClock
+                clearIcon={null}
+                calendarIcon={null}
+                className="text-sm"
               />
               {schedStart && (
                 <span className="text-xs text-muted-foreground">{formatRelative(new Date(schedStart).toISOString())}</span>
@@ -262,22 +269,16 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
                 </Button>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <span className="text-sm w-20 shrink-0">Stop at</span>
-              <input
-                type="date"
-                lang="uk"
-                value={schedStop.split('T')[0] || ''}
-                onChange={e => setSchedStop(e.target.value + 'T' + (schedStop.split('T')[1] || '00:00'))}
-                className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground"
-              />
-              <input
-                type="text"
-                placeholder="HH:MM"
-                maxLength={5}
-                value={schedStop.split('T')[1] || ''}
-                onChange={e => setSchedStop((schedStop.split('T')[0] || '') + 'T' + e.target.value)}
-                className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground w-20"
+              <DateTimePicker
+                value={strToDate(schedStop)}
+                onChange={d => setSchedStop(dateToStr(d))}
+                format="dd.MM.y HH:mm"
+                disableClock
+                clearIcon={null}
+                calendarIcon={null}
+                className="text-sm"
               />
               {schedStop && (
                 <span className="text-xs text-muted-foreground">{formatRelative(new Date(schedStop).toISOString())}</span>
