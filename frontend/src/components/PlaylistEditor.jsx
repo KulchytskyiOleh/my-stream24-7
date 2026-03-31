@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -15,10 +15,10 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus, X, Shuffle, Music, Video, Upload } from 'lucide-react';
+import { GripVertical, Plus, X, Shuffle, Music, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDuration } from '@/lib/utils';
-import { updatePlaylist, updateStream, updateLoopAudio, uploadAudio, deleteAudio } from '@/lib/api';
+import { updatePlaylist, updateStream, updateLoopAudio } from '@/lib/api';
 
 function SortableItem({ item, onRemove, label }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -176,9 +176,6 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
   const [selectedVideoId, setSelectedVideoId] = useState(stream.loopVideoId ?? '');
   const [audioItems, setAudioItems] = useState(stream.loopAudioItems ?? []);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(null);
-  const fileInputRef = useRef(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -206,31 +203,6 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
   };
 
   const removeAudioItem = (itemId) => setAudioItems(prev => prev.filter(i => i.id !== itemId));
-
-  const handleAudioUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setUploadProgress(0);
-    try {
-      const audio = await uploadAudio(file, setUploadProgress);
-      // Add directly to the list
-      addAudio(audio);
-    } catch (err) {
-      alert(err.response?.data?.error || err.message);
-    } finally {
-      setUploading(false);
-      setUploadProgress(null);
-      e.target.value = '';
-    }
-  };
-
-  const handleDeleteAudio = async (audio) => {
-    if (!confirm(`Delete "${audio.originalName}"?`)) return;
-    await deleteAudio(audio.id);
-    setAudioItems(prev => prev.filter(i => i.audio.id !== audio.id));
-    onUpdate();
-  };
 
   const save = async () => {
     setSaving(true);
@@ -276,30 +248,9 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left: audio library */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-              <Music size={13} /> Audio Library
-            </h3>
-            <div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="audio/*,.mp3,.aac,.ogg,.wav,.flac"
-                className="hidden"
-                onChange={handleAudioUpload}
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1 text-xs"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-              >
-                <Upload size={11} />
-                {uploading ? `${uploadProgress ?? 0}%` : 'Upload MP3'}
-              </Button>
-            </div>
-          </div>
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
+            <Music size={13} /> Audio Library
+          </h3>
 
           {availableAudios.length === 0 ? (
             <p className="text-sm text-muted-foreground">All audio files added to playlist</p>
@@ -316,13 +267,6 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
                   >
                     <Plus size={12} />
                   </Button>
-                  <Button
-                    variant="ghost" size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:text-destructive"
-                    onClick={() => handleDeleteAudio(audio)}
-                  >
-                    <X size={12} />
-                  </Button>
                 </div>
               ))}
             </div>
@@ -336,7 +280,7 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
           </h3>
 
           {audioItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No audio files. Add from the library or upload MP3.</p>
+            <p className="text-sm text-muted-foreground">No audio files. Add from the library.</p>
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={audioItems.map(i => i.id)} strategy={verticalListSortingStrategy}>

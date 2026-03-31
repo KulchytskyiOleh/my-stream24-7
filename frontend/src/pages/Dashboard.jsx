@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import Layout from '@/components/Layout';
 import VideoLibrary from '@/components/VideoLibrary';
+import AudioLibrary from '@/components/AudioLibrary';
 import StreamSlot from '@/components/StreamSlot';
 import NewStreamDialog from '@/components/NewStreamDialog';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ export default function Dashboard() {
   const [videos, setVideos] = useState([]);
   const [audios, setAudios] = useState([]);
   const [newStreamOpen, setNewStreamOpen] = useState(false);
+  const [libraryTab, setLibraryTab] = useState('video');
 
   const refreshStreams = useCallback(async () => {
     const data = await getStreams();
@@ -87,10 +89,27 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Video library section */}
+        {/* Library section */}
         <div>
-          <h2 className="text-lg font-semibold mb-4">Video Library</h2>
-          <VideoLibrary videos={videos} onRefresh={refreshVideos} />
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={() => setLibraryTab('video')}
+              className={`text-lg font-semibold transition-colors ${libraryTab === 'video' ? '' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Video Library
+            </button>
+            <span className="text-muted-foreground">/</span>
+            <button
+              onClick={() => setLibraryTab('audio')}
+              className={`text-lg font-semibold transition-colors ${libraryTab === 'audio' ? '' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Audio Library
+            </button>
+          </div>
+          {libraryTab === 'video'
+            ? <VideoLibrary videos={videos} onRefresh={refreshVideos} />
+            : <AudioLibrary audios={audios} onRefresh={refreshAudios} />
+          }
         </div>
       </div>
 
