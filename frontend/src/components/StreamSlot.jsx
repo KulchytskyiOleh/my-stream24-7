@@ -28,9 +28,11 @@ function formatRelative(isoString) {
 
 const inputCls = 'h-8 text-sm bg-muted border border-border rounded-md px-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer disabled:opacity-40';
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+const MINUTES_5 = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
+const MINUTES_1 = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 function DateTimeRow({ value, onChange, label = 'Start at' }) {
+  const [fineMin, setFineMin] = useState(false);
   const date = value.split('T')[0] || '';
   const time = value.split('T')[1] || '00:00';
   const hh = time.slice(0, 2);
@@ -40,6 +42,8 @@ function DateTimeRow({ value, onChange, label = 'Start at' }) {
     if (!newDate) { onChange(''); return; }
     onChange(`${newDate}T${newHH}:${newMM}`);
   };
+
+  const minutes = fineMin ? MINUTES_1 : MINUTES_5;
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
@@ -55,8 +59,16 @@ function DateTimeRow({ value, onChange, label = 'Start at' }) {
       </select>
       <span className="font-medium text-foreground">:</span>
       <select value={mm} onChange={e => update(date, hh, e.target.value)} className={inputCls} disabled={!date}>
-        {MINUTES.map(m => <option key={m}>{m}</option>)}
+        {minutes.map(m => <option key={m}>{m}</option>)}
       </select>
+      <button
+        type="button"
+        onClick={() => setFineMin(f => !f)}
+        className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${fineMin ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}
+        title={fineMin ? 'Switch to 5-min steps' : 'Switch to 1-min steps'}
+      >
+        {fineMin ? '1m' : '5m'}
+      </button>
       {value && (
         <span className="text-xs text-muted-foreground bg-muted rounded px-1.5 py-0.5">
           {formatRelative(new Date(value).toISOString())}
