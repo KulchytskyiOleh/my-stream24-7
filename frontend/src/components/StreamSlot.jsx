@@ -246,11 +246,12 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
                 className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground"
               />
               <input
-                type="time"
-                lang="uk"
+                type="text"
+                placeholder="HH:MM"
+                maxLength={5}
                 value={schedStart.split('T')[1] || ''}
                 onChange={e => setSchedStart((schedStart.split('T')[0] || '') + 'T' + e.target.value)}
-                className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground"
+                className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground w-20"
               />
               {schedStart && (
                 <span className="text-xs text-muted-foreground">{formatRelative(new Date(schedStart).toISOString())}</span>
@@ -271,11 +272,12 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
                 className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground"
               />
               <input
-                type="time"
-                lang="uk"
+                type="text"
+                placeholder="HH:MM"
+                maxLength={5}
                 value={schedStop.split('T')[1] || ''}
                 onChange={e => setSchedStop((schedStop.split('T')[0] || '') + 'T' + e.target.value)}
-                className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground"
+                className="text-sm bg-background border border-border rounded px-2 py-1 text-foreground w-20"
               />
               {schedStop && (
                 <span className="text-xs text-muted-foreground">{formatRelative(new Date(schedStop).toISOString())}</span>
