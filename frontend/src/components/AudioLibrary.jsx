@@ -79,7 +79,7 @@ export default function AudioLibrary({ audios, onRefresh }) {
             <div className="flex-1 min-w-0">
               <p className="text-sm truncate">{audio.originalName}</p>
               <p className="text-xs text-muted-foreground">
-                {formatBytes(audio.size)} · {formatDuration(audio.duration)}
+                {formatBytes(audio.size)} · {formatDuration(audio.duration)}{audio.bitrate ? ` · ${Math.round(audio.bitrate / 1000)} kbps` : ''}
               </p>
             </div>
             <Button

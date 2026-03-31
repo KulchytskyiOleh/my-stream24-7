@@ -41,7 +41,7 @@ const uploadLimiter = rateLimit({
   message: { error: 'Too many uploads, try again later' },
 });
 
-function getAudioDuration(filePath) {
+function getAudioMeta(filePath) {
   return new Promise((resolve) => {
     const proc = spawn('ffprobe', [
       '-v', 'quiet',
@@ -55,12 +55,13 @@ function getAudioDuration(filePath) {
       try {
         const data = JSON.parse(output);
         const duration = parseFloat(data.format?.duration) || null;
-        resolve(duration);
+        const bitrate = parseInt(data.format?.bit_rate) || null;
+        resolve({ duration, bitrate });
       } catch {
-        resolve(null);
+        resolve({ duration: null, bitrate: null });
       }
     });
-    proc.on('error', () => resolve(null));
+    proc.on('error', () => resolve({ duration: null, bitrate: null }));
   });
 }
 
@@ -69,7 +70,7 @@ router.post('/', requireAuth, uploadLimiter, upload.single('audio'), async (req,
   if (!req.file) return res.status(400).json({ error: 'No audio file provided' });
 
   const filePath = path.join(uploadDir, req.file.filename);
-  const duration = await getAudioDuration(filePath);
+  const { duration, bitrate } = await getAudioMeta(filePath);
 
   const audio = await prisma.audio.create({
     data: {
@@ -78,6 +79,7 @@ router.post('/', requireAuth, uploadLimiter, upload.single('audio'), async (req,
       originalName: req.file.originalname,
       size: BigInt(req.file.size),
       duration,
+      bitrate,
       path: filePath,
     },
   });
@@ -90,7 +92,7 @@ router.get('/', requireAuth, async (req, res) => {
   const audios = await prisma.audio.findMany({
     where: { userId: req.user.id },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, originalName: true, size: true, duration: true, createdAt: true },
+    select: { id: true, originalName: true, size: true, duration: true, bitrate: true, createdAt: true },
   });
   res.json(audios.map(a => ({ ...a, size: Number(a.size) })));
 });
