@@ -73,8 +73,17 @@ export default function VideoLibrary({ videos, onRefresh }) {
   };
 
   const onDrop = useCallback((acceptedFiles) => {
-    acceptedFiles.forEach(startUpload);
-  }, [onRefresh]);
+    const duplicates = [];
+    const toUpload = acceptedFiles.filter(file => {
+      const isDup = videos.some(v => v.originalName === file.name && Number(v.size) === file.size);
+      if (isDup) duplicates.push(file.name);
+      return !isDup;
+    });
+    if (duplicates.length) {
+      alert(`Already uploaded:\n${duplicates.join('\n')}`);
+    }
+    toUpload.forEach(startUpload);
+  }, [videos, onRefresh]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,

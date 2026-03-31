@@ -24,8 +24,17 @@ export default function AudioLibrary({ audios, onRefresh }) {
   };
 
   const onDrop = useCallback((acceptedFiles) => {
-    acceptedFiles.forEach(startUpload);
-  }, []);
+    const duplicates = [];
+    const toUpload = acceptedFiles.filter(file => {
+      const isDup = audios.some(a => a.originalName === file.name && Number(a.size) === file.size);
+      if (isDup) duplicates.push(file.name);
+      return !isDup;
+    });
+    if (duplicates.length) {
+      alert(`Already uploaded:\n${duplicates.join('\n')}`);
+    }
+    toUpload.forEach(startUpload);
+  }, [audios]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,

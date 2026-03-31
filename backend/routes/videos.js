@@ -4,13 +4,11 @@ import fs from 'fs/promises';
 import { PrismaClient } from '@prisma/client';
 import rateLimit from 'express-rate-limit';
 import { requireAuth } from '../middleware/auth.js';
-import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import { Server as TusServer } from '@tus/server';
 import { FileStore } from '@tus/file-store';
 import { processVideo, transcodeVideo, transcodingProgress } from '../services/transcoder.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const prisma = new PrismaClient();
 const router = Router();
 
@@ -53,6 +51,21 @@ function getVideoInfo(filePath) {
 const tusServer = new TusServer({
   path: '/api/videos/upload',
   datastore: new FileStore({ directory: uploadDir }),
+  onUploadCreate: async (req, res, upload) => {
+    const userId = req.user?.id;
+    const originalName = decodeURIComponent(upload.metadata?.filename || '');
+    const size = upload.size;
+    if (userId && originalName && size) {
+      const existing = await prisma.video.findFirst({
+        where: { userId, originalName, size: BigInt(size) },
+      });
+      if (existing) {
+        const error = { status_code: 409, body: 'This file is already uploaded' };
+        throw error;
+      }
+    }
+    return res;
+  },
   onUploadFinish: async (req, res, upload) => {
     try {
       const userId = req.user?.id;

@@ -70,6 +70,15 @@ router.post('/', requireAuth, uploadLimiter, upload.single('audio'), async (req,
   if (!req.file) return res.status(400).json({ error: 'No audio file provided' });
 
   const filePath = path.join(uploadDir, req.file.filename);
+
+  const existing = await prisma.audio.findFirst({
+    where: { userId: req.user.id, originalName: req.file.originalname, size: BigInt(req.file.size) },
+  });
+  if (existing) {
+    await fs.unlink(filePath).catch(() => {});
+    return res.status(409).json({ error: 'This file is already uploaded' });
+  }
+
   const { duration, bitrate } = await getAudioMeta(filePath);
 
   const audio = await prisma.audio.create({
