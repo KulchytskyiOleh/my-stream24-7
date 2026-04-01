@@ -52,7 +52,8 @@ const tusServer = new TusServer({
   path: '/api/videos/upload',
   datastore: new FileStore({ directory: uploadDir }),
   generateUrl: (req, { proto, host, path, id }) => {
-    const scheme = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : proto;
+    const scheme = process.env.FORCE_HTTPS === 'true' ? 'https'
+      : (req.headers['x-forwarded-proto'] || proto);
     return `${scheme}://${host}${path}/${id}`;
   },
   onUploadCreate: async (req, res, upload) => {
