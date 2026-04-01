@@ -82,6 +82,7 @@ model Stream {
   audioShuffle   Boolean      @default(false)  @map("audio_shuffle")
   scheduleStart  DateTime?    @map("schedule_start")
   scheduleStop   DateTime?    @map("schedule_stop")
+  errorMessage   String?      @map("error_message")
   createdAt      DateTime     @default(now()) @map("created_at")
 
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)

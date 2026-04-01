@@ -55,7 +55,7 @@ async function _startPlaylistStream(streamId, stream) {
 
   await prisma.stream.update({
     where: { id: streamId },
-    data: { status: 'ONLINE' },
+    data: { status: 'ONLINE', errorMessage: null },
   });
 
   const state = { process: null, currentIndex: 0, playlist, streamKey, stopped: false, mode: 'PLAYLIST' };
@@ -84,7 +84,7 @@ async function _startLoopStream(streamId, stream) {
 
   await prisma.stream.update({
     where: { id: streamId },
-    data: { status: 'ONLINE', currentVideoId: stream.loopVideoId },
+    data: { status: 'ONLINE', currentVideoId: stream.loopVideoId, errorMessage: null },
   });
 
   const args = [
@@ -109,20 +109,23 @@ async function _startLoopStream(streamId, stream) {
   activeStreams.set(streamId, state);
   streamStartTimes.set(streamId, Date.now());
 
+  let lastStderr = '';
   proc.stderr.on('data', (data) => {
-    const match = data.toString().match(/bitrate=\s*([\d.]+)kbits\/s/);
+    const text = data.toString();
+    const match = text.match(/bitrate=\s*([\d.]+)kbits\/s/);
     if (match) streamBitrates.set(streamId, parseFloat(match[1]));
+    lastStderr = text.trim().split('\n').pop() || lastStderr;
   });
 
   proc.on('close', async () => {
     if (state.stopped) return;
-    await stopStream(streamId, 'ERROR');
+    await stopStream(streamId, 'ERROR', lastStderr || 'FFmpeg exited unexpectedly');
   });
 
   proc.on('error', async (err) => {
     console.error(`FFmpeg error for stream ${streamId}:`, err);
     if (!state.stopped) {
-      await stopStream(streamId, 'ERROR');
+      await stopStream(streamId, 'ERROR', err.message);
     }
   });
 }
@@ -165,9 +168,12 @@ async function playNext(streamId) {
   const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] });
   state.process = proc;
 
+  let lastStderr = '';
   proc.stderr.on('data', (data) => {
-    const match = data.toString().match(/bitrate=\s*([\d.]+)kbits\/s/);
+    const text = data.toString();
+    const match = text.match(/bitrate=\s*([\d.]+)kbits\/s/);
     if (match) streamBitrates.set(streamId, parseFloat(match[1]));
+    lastStderr = text.trim().split('\n').pop() || lastStderr;
   });
 
   proc.on('close', async () => {
@@ -179,12 +185,12 @@ async function playNext(streamId) {
   proc.on('error', async (err) => {
     console.error(`FFmpeg error for stream ${streamId}:`, err);
     if (!state.stopped) {
-      await stopStream(streamId, 'ERROR');
+      await stopStream(streamId, 'ERROR', err.message);
     }
   });
 }
 
-export async function stopStream(streamId, status = 'OFFLINE') {
+export async function stopStream(streamId, status = 'OFFLINE', errorMessage = null) {
   const state = activeStreams.get(streamId);
   if (!state) return;
 
@@ -204,7 +210,7 @@ export async function stopStream(streamId, status = 'OFFLINE') {
 
   await prisma.stream.update({
     where: { id: streamId },
-    data: { status, currentVideoId: null },
+    data: { status, currentVideoId: null, errorMessage: errorMessage ?? null },
   });
 }
 

@@ -198,6 +198,11 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
                   {stream.mode === 'LOOP' ? 'Looping:' : 'Now playing:'} {stream.currentVideo.originalName}
                 </p>
               )}
+              {stream.status === 'ERROR' && stream.errorMessage && (
+                <p className="text-xs text-red-400 truncate mt-0.5" title={stream.errorMessage}>
+                  {stream.errorMessage}
+                </p>
+              )}
               {stream.status === 'ONLINE' && (stream.bitrate || stream.startedAt) && (
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {stream.bitrate ? `${(stream.bitrate / 1000).toFixed(1)} Mbps` : ''}
