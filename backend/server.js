@@ -18,6 +18,7 @@ import { startScheduler } from './services/scheduler.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const prisma = new PrismaClient();
 const app = express();
+app.set('trust proxy', 1);
 
 // Ensure upload directory exists
 const uploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads');
