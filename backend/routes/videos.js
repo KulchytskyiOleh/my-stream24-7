@@ -51,6 +51,10 @@ function getVideoInfo(filePath) {
 const tusServer = new TusServer({
   path: '/api/videos/upload',
   datastore: new FileStore({ directory: uploadDir }),
+  generateUrl: (req, { proto, host, path, id }) => {
+    const scheme = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : proto;
+    return `${scheme}://${host}${path}/${id}`;
+  },
   onUploadCreate: async (req, res, upload) => {
     const userId = req.user?.id;
     const originalName = decodeURIComponent(upload.metadata?.filename || '');
