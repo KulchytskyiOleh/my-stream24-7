@@ -25,6 +25,7 @@ async function handleStreamError(streamId, errorMessage) {
     console.log(`Stream ${streamId} error, retry ${retries + 1}/3...`);
     await stopStream(streamId, 'OFFLINE');
     await new Promise(resolve => setTimeout(resolve, 5000));
+    streamRetries.set(streamId, retries + 1);
     try {
       await startStream(streamId);
     } catch (err) {
@@ -256,7 +257,6 @@ export async function restartStream(streamId) {
   if (!stream) throw new Error('Stream not found');
 
   streamRetries.delete(streamId);
-  const mode = stream.mode;
   await stopStream(streamId);
 
   // Brief pause — YouTube keeps stream alive during short gaps
