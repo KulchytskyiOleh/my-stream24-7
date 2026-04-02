@@ -35,6 +35,7 @@ export const stopStream = (id) => api.post(`/streams/${id}/stop`).then(r => r.da
 export const restartStream = (id) => api.post(`/streams/${id}/restart`).then(r => r.data);
 export const updatePlaylist = (id, videoIds) =>
   api.put(`/streams/${id}/playlist`, { videoIds }).then(r => r.data);
+export const getStreamHistory = (id) => api.get(`/streams/${id}/history`).then(r => r.data);
 export const updateLoopAudio = (id, audioIds) =>
   api.put(`/streams/${id}/loop-audio`, { audioIds }).then(r => r.data);
 

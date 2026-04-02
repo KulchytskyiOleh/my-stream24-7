@@ -58,7 +58,8 @@ async function _startPlaylistStream(streamId, stream) {
     data: { status: 'ONLINE', errorMessage: null },
   });
 
-  const state = { process: null, currentIndex: 0, playlist, streamKey, stopped: false, mode: 'PLAYLIST' };
+  const session = await prisma.streamSession.create({ data: { streamId } });
+  const state = { process: null, currentIndex: 0, playlist, streamKey, stopped: false, mode: 'PLAYLIST', sessionId: session.id };
   activeStreams.set(streamId, state);
   streamStartTimes.set(streamId, Date.now());
 
@@ -87,6 +88,8 @@ async function _startLoopStream(streamId, stream) {
     data: { status: 'ONLINE', currentVideoId: stream.loopVideoId, errorMessage: null },
   });
 
+  const loopSession = await prisma.streamSession.create({ data: { streamId } });
+
   const args = [
     '-stream_loop', '-1',
     '-re',
@@ -105,7 +108,7 @@ async function _startLoopStream(streamId, stream) {
   ];
 
   const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] });
-  const state = { process: proc, stopped: false, mode: 'LOOP', concatPath };
+  const state = { process: proc, stopped: false, mode: 'LOOP', concatPath, sessionId: loopSession.id };
   activeStreams.set(streamId, state);
   streamStartTimes.set(streamId, Date.now());
 
@@ -207,6 +210,17 @@ export async function stopStream(streamId, status = 'OFFLINE', errorMessage = nu
   activeStreams.delete(streamId);
   streamBitrates.delete(streamId);
   streamStartTimes.delete(streamId);
+
+  if (state.sessionId) {
+    await prisma.streamSession.update({
+      where: { id: state.sessionId },
+      data: {
+        stoppedAt: new Date(),
+        reason: status === 'OFFLINE' ? 'STOPPED' : 'ERROR',
+        errorMessage: errorMessage ?? null,
+      },
+    });
+  }
 
   await prisma.stream.update({
     where: { id: streamId },

@@ -90,6 +90,7 @@ model Stream {
   loopVideo      Video?          @relation("LoopVideo", fields: [loopVideoId], references: [id])
   playlistItems  PlaylistItem[]
   loopAudioItems LoopAudioItem[]
+  sessions       StreamSession[]
 
   @@map("streams")
 }
@@ -131,4 +132,17 @@ model LoopAudioItem {
 
   @@unique([streamId, position])
   @@map("loop_audio_items")
+}
+
+model StreamSession {
+  id           String    @id @default(uuid())
+  streamId     String    @map("stream_id")
+  startedAt    DateTime  @default(now()) @map("started_at")
+  stoppedAt    DateTime? @map("stopped_at")
+  reason       String?
+  errorMessage String?   @map("error_message")
+
+  stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+
+  @@map("stream_sessions")
 }

@@ -152,6 +152,22 @@ router.post('/:id/restart', requireAuth, async (req, res) => {
   }
 });
 
+// Stream history
+router.get('/:id/history', requireAuth, async (req, res) => {
+  const stream = await prisma.stream.findFirst({
+    where: { id: req.params.id, userId: req.user.id },
+  });
+  if (!stream) return res.status(404).json({ error: 'Stream not found' });
+
+  const sessions = await prisma.streamSession.findMany({
+    where: { streamId: stream.id },
+    orderBy: { startedAt: 'desc' },
+    take: 50,
+  });
+
+  res.json(sessions);
+});
+
 // Update playlist
 router.put('/:id/playlist', requireAuth, async (req, res) => {
   const stream = await prisma.stream.findFirst({

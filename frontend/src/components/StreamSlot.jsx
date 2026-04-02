@@ -1,11 +1,11 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Play, Square, Pencil, Trash2, ChevronDown, ChevronUp, Radio, RotateCcw, Check, X, Clock, AlertCircle } from 'lucide-react';
+import { Play, Square, Pencil, Trash2, ChevronDown, ChevronUp, Radio, RotateCcw, Check, X, Clock, AlertCircle, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import PlaylistEditor from './PlaylistEditor';
-import { startStream, stopStream, restartStream, deleteStream, updateStream } from '@/lib/api';
+import { startStream, stopStream, restartStream, deleteStream, updateStream, getStreamHistory } from '@/lib/api';
 
 function ErrorTooltip({ message }) {
   const [visible, setVisible] = useState(false);
@@ -141,6 +141,9 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
   const [schedStart, setSchedStart] = useState(toDatetimeLocal(stream.scheduleStart));
   const [schedStop, setSchedStop] = useState(toDatetimeLocal(stream.scheduleStop));
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const handleToggle = async () => {
     setLoading(true);
@@ -216,6 +219,21 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
     } finally {
       setSavingSchedule(false);
     }
+  };
+
+  const handleToggleHistory = async () => {
+    if (!historyOpen && history === null) {
+      setHistoryLoading(true);
+      try {
+        const data = await getStreamHistory(stream.id);
+        setHistory(data);
+      } catch (err) {
+        setHistory([]);
+      } finally {
+        setHistoryLoading(false);
+      }
+    }
+    setHistoryOpen(o => !o);
   };
 
   const handleDelete = async () => {
@@ -368,6 +386,55 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
           <PlaylistEditor stream={stream} videos={videos} audios={audios} onUpdate={onRefresh} />
         </div>
       )}
+
+      <div className="border-t border-border">
+        <button
+          className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+          onClick={handleToggleHistory}
+        >
+          <span className="flex items-center gap-2">
+            <History size={14} />
+            Stream History
+          </span>
+          {historyOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+
+        {historyOpen && (
+          <div className="px-4 pb-4">
+            {historyLoading && (
+              <p className="text-xs text-muted-foreground py-2">Loading…</p>
+            )}
+            {!historyLoading && history?.length === 0 && (
+              <p className="text-xs text-muted-foreground py-2">No sessions yet.</p>
+            )}
+            {!historyLoading && history?.length > 0 && (
+              <div className="space-y-1">
+                {history.map(s => (
+                  <div key={s.id} className="flex items-center justify-between text-xs py-1.5 border-b border-border/50 last:border-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${s.reason === 'ERROR' ? 'bg-red-400' : 'bg-green-400'}`} />
+                      <span className="text-foreground">{new Date(s.startedAt).toLocaleString()}</span>
+                      {s.stoppedAt && (
+                        <span className="text-muted-foreground">
+                          → {new Date(s.stoppedAt).toLocaleString()}
+                        </span>
+                      )}
+                      {!s.stoppedAt && (
+                        <span className="text-green-400">running</span>
+                      )}
+                    </div>
+                    {s.reason && (
+                      <span className={`shrink-0 ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium ${s.reason === 'ERROR' ? 'bg-red-500/15 text-red-400' : 'bg-muted text-muted-foreground'}`}>
+                        {s.reason}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
