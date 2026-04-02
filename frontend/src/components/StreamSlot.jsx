@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Square, Pencil, Trash2, ChevronDown, ChevronUp, Radio, RotateCcw, Check, X, Clock, AlertCircle } from 'lucide-react';
+import { Play, Square, Pencil, Trash2, ChevronDown, ChevronUp, Radio, RotateCcw, Check, X, Clock} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -93,19 +93,6 @@ function friendlyError(msg) {
   return msg;
 }
 
-function ErrorTooltip({ message }) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <div className="relative flex items-center" onMouseEnter={() => setVisible(true)} onMouseLeave={() => setVisible(false)}>
-      <AlertCircle size={15} className="text-red-400 cursor-help" />
-      {visible && (
-        <div className="absolute bottom-full right-0 mb-2 z-[9999] w-64 rounded-md bg-popover border border-border shadow-lg px-3 py-2 text-xs text-foreground">
-          {friendlyError(message)}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function formatUptime(ms) {
   const s = Math.floor(ms / 1000);
@@ -256,7 +243,9 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
             <Badge status={stream.status} />
 
             {stream.status === 'ERROR' && stream.errorMessage && (
-              <ErrorTooltip message={stream.errorMessage} />
+              <span className="text-xs text-red-400 max-w-[200px] truncate" title={friendlyError(stream.errorMessage)}>
+                {friendlyError(stream.errorMessage)}
+              </span>
             )}
 
             {stream.status === 'ONLINE' && (
