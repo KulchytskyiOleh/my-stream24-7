@@ -181,7 +181,7 @@ export default function VideoLibrary({ videos, onRefresh }) {
                 variant="outline"
                 size="sm"
                 className="h-7 text-xs text-yellow-500 border-yellow-500/30 hover:bg-yellow-500/10 shrink-0"
-                onClick={() => { transcodeVideo(video.id); onRefresh(); }}
+                onClick={() => { transcodeVideo(video.id).catch(() => {}).finally(onRefresh); }}
               >
                 Fix for YouTube
               </Button>
