@@ -14,6 +14,7 @@ import videosRouter from './routes/videos.js';
 import streamsRouter from './routes/streams.js';
 import audiosRouter from './routes/audios.js';
 import { startScheduler } from './services/scheduler.js';
+import { startStream } from './services/ffmpeg.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const prisma = new PrismaClient();
@@ -85,11 +86,23 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
-  // Reset stale ONLINE streams left from previous server run
+  // Reset stale ONLINE streams left from previous server run, then recover them
+  const onlineStreams = await prisma.stream.findMany({
+    where: { status: 'ONLINE' },
+    select: { id: true },
+  });
   await prisma.stream.updateMany({
     where: { status: 'ONLINE' },
     data: { status: 'OFFLINE', currentVideoId: null },
   });
+  for (const s of onlineStreams) {
+    try {
+      await startStream(s.id);
+      console.log(`Auto-recovered stream ${s.id}`);
+    } catch (err) {
+      console.error(`Failed to recover stream ${s.id}:`, err.message);
+    }
+  }
   startScheduler();
   console.log(`Server running on http://localhost:${PORT}`);
 });
