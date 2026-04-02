@@ -23,7 +23,7 @@ function ErrorTooltip({ message }) {
       <AlertCircle size={15} className="text-red-400 cursor-help" />
       {visible && createPortal(
         <div
-          className="fixed z-[9999] w-64 rounded-md bg-popover border border-border shadow-lg px-3 py-2 text-xs text-foreground -translate-x-1/2 -translate-y-full"
+          className="fixed z-[9999] w-64 rounded-md bg-card border border-border shadow-xl px-3 py-2 text-xs text-foreground -translate-x-1/2 -translate-y-full"
           style={{ top: pos.top, left: pos.left }}
         >
           {message}
