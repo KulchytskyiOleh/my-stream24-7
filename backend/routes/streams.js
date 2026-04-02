@@ -152,6 +152,15 @@ router.post('/:id/restart', requireAuth, async (req, res) => {
   }
 });
 
+// Get decrypted stream key
+router.get('/:id/key', requireAuth, async (req, res) => {
+  const stream = await prisma.stream.findFirst({
+    where: { id: req.params.id, userId: req.user.id },
+  });
+  if (!stream) return res.status(404).json({ error: 'Stream not found' });
+  res.json({ streamKey: decrypt(stream.streamKeyEnc) });
+});
+
 // Stream history
 router.get('/:id/history', requireAuth, async (req, res) => {
   const stream = await prisma.stream.findFirst({

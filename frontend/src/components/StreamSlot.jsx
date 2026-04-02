@@ -1,11 +1,11 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Play, Square, Pencil, Trash2, ChevronDown, ChevronUp, Radio, RotateCcw, Check, X, Clock, AlertCircle, History } from 'lucide-react';
+import { Play, Square, Pencil, Trash2, ChevronDown, ChevronUp, Radio, RotateCcw, Check, X, Clock, AlertCircle, History, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import PlaylistEditor from './PlaylistEditor';
-import { startStream, stopStream, restartStream, deleteStream, updateStream, getStreamHistory } from '@/lib/api';
+import { startStream, stopStream, restartStream, deleteStream, updateStream, getStreamHistory, getStreamKey } from '@/lib/api';
 
 function ErrorTooltip({ message }) {
   const [visible, setVisible] = useState(false);
@@ -137,6 +137,8 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
   const [editingKey, setEditingKey] = useState(false);
   const [newKey, setNewKey] = useState('');
   const [savingKey, setSavingKey] = useState(false);
+  const [currentKey, setCurrentKey] = useState('');
+  const [keyVisible, setKeyVisible] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [schedStart, setSchedStart] = useState(toDatetimeLocal(stream.scheduleStart));
   const [schedStop, setSchedStop] = useState(toDatetimeLocal(stream.scheduleStop));
@@ -173,9 +175,17 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
     }
   };
 
-  const handleEditKey = () => {
+  const handleEditKey = async () => {
     setNewKey('');
+    setKeyVisible(false);
     setEditingKey(true);
+    try {
+      const key = await getStreamKey(stream.id);
+      setCurrentKey(key);
+      setNewKey(key);
+    } catch {
+      setCurrentKey('');
+    }
   };
 
   const handleSaveKey = async () => {
@@ -268,15 +278,25 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
           <div className="flex items-center gap-2 shrink-0">
             {editingKey && (
               <div className="flex items-center gap-1">
-                <Input
-                  type="password"
-                  placeholder="New stream key"
-                  value={newKey}
-                  onChange={e => setNewKey(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleSaveKey(); if (e.key === 'Escape') setEditingKey(false); }}
-                  className="h-8 w-48 text-xs"
-                  autoFocus
-                />
+                <div className="relative">
+                  <Input
+                    type={keyVisible ? 'text' : 'password'}
+                    placeholder="Stream key"
+                    value={newKey}
+                    onChange={e => setNewKey(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSaveKey(); if (e.key === 'Escape') setEditingKey(false); }}
+                    className="h-8 w-56 text-xs pr-8"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setKeyVisible(v => !v)}
+                    tabIndex={-1}
+                  >
+                    {keyVisible ? <EyeOff size={13} /> : <Eye size={13} />}
+                  </button>
+                </div>
                 <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500" onClick={handleSaveKey} disabled={savingKey}>
                   <Check size={14} />
                 </Button>
