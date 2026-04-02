@@ -420,7 +420,7 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
         </button>
 
         {historyOpen && (
-          <div className="px-4 pb-4">
+          <div className="px-4 pb-4 max-h-48 overflow-y-auto">
             {historyLoading && (
               <p className="text-xs text-muted-foreground py-2">Loading…</p>
             )}
