@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, Square, Pencil, Trash2, ChevronDown, ChevronUp, Radio, RotateCcw, Check, X, Clock } from 'lucide-react';
+import { Play, Square, Pencil, Trash2, ChevronDown, ChevronUp, Radio, RotateCcw, Check, X, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -78,6 +78,30 @@ function DateTimeRow({ value, onChange, label = 'Start at' }) {
         <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground" onClick={() => onChange('')}>
           <X size={12} />
         </Button>
+      )}
+    </div>
+  );
+}
+
+function friendlyError(msg) {
+  if (!msg) return 'Unknown error';
+  const m = msg.toLowerCase();
+  if (m.includes('connection refused') || m.includes('failed to connect') || m.includes('rtmp')) return 'Could not connect to YouTube. Check your stream key.';
+  if (m.includes('conversion failed')) return 'Stream stopped unexpectedly. Possible causes: wrong stream key, network issue, or video too large for your connection.';
+  if (m.includes('invalid data') || m.includes('moov atom')) return 'Video file is corrupted or in unsupported format.';
+  if (m.includes('no such file')) return 'Video file not found on server.';
+  return msg;
+}
+
+function ErrorTooltip({ message }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative flex items-center" onMouseEnter={() => setVisible(true)} onMouseLeave={() => setVisible(false)}>
+      <AlertCircle size={15} className="text-red-400 cursor-help" />
+      {visible && (
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 z-50 w-64 rounded-md bg-popover border border-border shadow-lg px-3 py-2 text-xs text-foreground">
+          {friendlyError(message)}
+        </div>
       )}
     </div>
   );
@@ -198,11 +222,6 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
                   {stream.mode === 'LOOP' ? 'Looping:' : 'Now playing:'} {stream.currentVideo.originalName}
                 </p>
               )}
-              {stream.status === 'ERROR' && stream.errorMessage && (
-                <p className="text-xs text-red-400 truncate mt-0.5" title={stream.errorMessage}>
-                  {stream.errorMessage}
-                </p>
-              )}
               {stream.status === 'ONLINE' && (stream.bitrate || stream.startedAt) && (
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {stream.bitrate ? `${(stream.bitrate / 1000).toFixed(1)} Mbps` : ''}
@@ -235,6 +254,10 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
             )}
 
             <Badge status={stream.status} />
+
+            {stream.status === 'ERROR' && stream.errorMessage && (
+              <ErrorTooltip message={stream.errorMessage} />
+            )}
 
             {stream.status === 'ONLINE' && (
               <Button
