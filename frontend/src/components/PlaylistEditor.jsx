@@ -112,6 +112,8 @@ function PlaylistMode({ stream, videos, onUpdate }) {
 
   const inPlaylist = new Set(items.map(i => i.video.id));
   const availableVideos = videos.filter(v => !inPlaylist.has(v.id) && (v.status === 'READY' || v.status === 'NEEDS_TRANSCODE'));
+  const totalDuration = items.reduce((sum, i) => sum + (i.video?.duration ?? 0), 0);
+  const totalSize = items.reduce((sum, i) => sum + (i.video?.size ?? 0), 0);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -136,7 +138,11 @@ function PlaylistMode({ stream, videos, onUpdate }) {
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-muted-foreground">Playlist ({items.length})</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">
+            Playlist ({items.length})
+            {totalDuration > 0 && <span className="ml-1.5 font-normal">{formatDuration(totalDuration)}</span>}
+            {totalSize > 0 && <span className="ml-1 font-normal">· {formatBytes(totalSize)}</span>}
+          </h3>
           <button
             onClick={toggleShuffle}
             className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-colors ${
@@ -231,6 +237,7 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
   const inAudioList = new Set(audioItems.map(i => i.audio.id));
   const availableAudios = audios.filter(a => !inAudioList.has(a.id));
   const totalAudioDuration = audioItems.reduce((sum, i) => sum + (i.audio?.duration ?? 0), 0);
+  const totalAudioSize = audioItems.reduce((sum, i) => sum + (i.audio?.size ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -291,7 +298,9 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
         <div>
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-muted-foreground">
-              Audio Playlist ({audioItems.length}){totalAudioDuration > 0 && <span className="ml-1.5 font-normal">{formatDuration(totalAudioDuration)}</span>}
+              Audio Playlist ({audioItems.length})
+              {totalAudioDuration > 0 && <span className="ml-1.5 font-normal">{formatDuration(totalAudioDuration)}</span>}
+              {totalAudioSize > 0 && <span className="ml-1 font-normal">· {formatBytes(totalAudioSize)}</span>}
             </h3>
             <button
               onClick={toggleAudioShuffle}

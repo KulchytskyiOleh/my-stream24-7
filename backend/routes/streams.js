@@ -11,11 +11,11 @@ const streamInclude = {
   currentVideo: { select: { id: true, originalName: true } },
   loopVideo: { select: { id: true, originalName: true, duration: true, status: true, size: true, bitrate: true, width: true, height: true } },
   playlistItems: {
-    include: { video: { select: { id: true, originalName: true, duration: true } } },
+    include: { video: { select: { id: true, originalName: true, duration: true, size: true } } },
     orderBy: { position: 'asc' },
   },
   loopAudioItems: {
-    include: { audio: { select: { id: true, originalName: true, duration: true } } },
+    include: { audio: { select: { id: true, originalName: true, duration: true, size: true } } },
     orderBy: { position: 'asc' },
   },
 };
@@ -253,6 +253,20 @@ function maskStreamKey(stream) {
   const { streamKeyEnc, ...rest } = stream;
   if (rest.loopVideo?.size != null) {
     rest.loopVideo = { ...rest.loopVideo, size: Number(rest.loopVideo.size) };
+  }
+  if (rest.playlistItems) {
+    rest.playlistItems = rest.playlistItems.map(item =>
+      item.video?.size != null
+        ? { ...item, video: { ...item.video, size: Number(item.video.size) } }
+        : item
+    );
+  }
+  if (rest.loopAudioItems) {
+    rest.loopAudioItems = rest.loopAudioItems.map(item =>
+      item.audio?.size != null
+        ? { ...item, audio: { ...item.audio, size: Number(item.audio.size) } }
+        : item
+    );
   }
   return rest;
 }
