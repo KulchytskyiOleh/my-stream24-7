@@ -99,7 +99,7 @@ function ErrorTooltip({ message }) {
     <div className="relative flex items-center" onMouseEnter={() => setVisible(true)} onMouseLeave={() => setVisible(false)}>
       <AlertCircle size={15} className="text-red-400 cursor-help" />
       {visible && (
-        <div className="absolute left-6 top-1/2 -translate-y-1/2 z-50 w-64 rounded-md bg-popover border border-border shadow-lg px-3 py-2 text-xs text-foreground">
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 z-[9999] w-64 rounded-md bg-popover border border-border shadow-lg px-3 py-2 text-xs text-foreground">
           {friendlyError(message)}
         </div>
       )}
