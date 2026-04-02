@@ -9,6 +9,7 @@ const prisma = new PrismaClient();
 const activeStreams = new Map();
 const streamBitrates = new Map();  // streamId -> kbits/s
 const streamStartTimes = new Map(); // streamId -> Date.now()
+const streamRetries = new Map();   // streamId -> retryCount
 
 export function getStreamStats(streamId) {
   return {
@@ -17,10 +18,29 @@ export function getStreamStats(streamId) {
   };
 }
 
+async function handleStreamError(streamId, errorMessage) {
+  const retries = streamRetries.get(streamId) ?? 0;
+  if (retries < 3) {
+    streamRetries.set(streamId, retries + 1);
+    console.log(`Stream ${streamId} error, retry ${retries + 1}/3...`);
+    await stopStream(streamId, 'OFFLINE');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    try {
+      await startStream(streamId);
+    } catch (err) {
+      await handleStreamError(streamId, err.message);
+    }
+  } else {
+    streamRetries.delete(streamId);
+    await stopStream(streamId, 'ERROR', errorMessage);
+  }
+}
+
 export async function startStream(streamId) {
   if (activeStreams.has(streamId)) {
     throw new Error('Stream already running');
   }
+  streamRetries.delete(streamId);
 
   const stream = await prisma.stream.findUnique({
     where: { id: streamId },
@@ -122,13 +142,13 @@ async function _startLoopStream(streamId, stream) {
 
   proc.on('close', async () => {
     if (state.stopped) return;
-    await stopStream(streamId, 'ERROR', lastStderr || 'FFmpeg exited unexpectedly');
+    await handleStreamError(streamId, lastStderr || 'FFmpeg exited unexpectedly');
   });
 
   proc.on('error', async (err) => {
     console.error(`FFmpeg error for stream ${streamId}:`, err);
     if (!state.stopped) {
-      await stopStream(streamId, 'ERROR', err.message);
+      await handleStreamError(streamId, err.message);
     }
   });
 }
@@ -188,7 +208,7 @@ async function playNext(streamId) {
   proc.on('error', async (err) => {
     console.error(`FFmpeg error for stream ${streamId}:`, err);
     if (!state.stopped) {
-      await stopStream(streamId, 'ERROR', err.message);
+      await handleStreamError(streamId, err.message);
     }
   });
 }
@@ -235,6 +255,7 @@ export async function restartStream(streamId) {
   const stream = await prisma.stream.findUnique({ where: { id: streamId } });
   if (!stream) throw new Error('Stream not found');
 
+  streamRetries.delete(streamId);
   const mode = stream.mode;
   await stopStream(streamId);
 
