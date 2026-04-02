@@ -1,10 +1,38 @@
-import { useState } from 'react';
-import { Play, Square, Pencil, Trash2, ChevronDown, ChevronUp, Radio, RotateCcw, Check, X, Clock} from 'lucide-react';
+import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { Play, Square, Pencil, Trash2, ChevronDown, ChevronUp, Radio, RotateCcw, Check, X, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import PlaylistEditor from './PlaylistEditor';
 import { startStream, stopStream, restartStream, deleteStream, updateStream } from '@/lib/api';
+
+function ErrorTooltip({ message }) {
+  const [visible, setVisible] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const ref = useRef(null);
+
+  const handleMouseEnter = () => {
+    const rect = ref.current.getBoundingClientRect();
+    setPos({ top: rect.top + window.scrollY - 8, left: rect.left + rect.width / 2 });
+    setVisible(true);
+  };
+
+  return (
+    <div ref={ref} className="flex items-center" onMouseEnter={handleMouseEnter} onMouseLeave={() => setVisible(false)}>
+      <AlertCircle size={15} className="text-red-400 cursor-help" />
+      {visible && createPortal(
+        <div
+          className="fixed z-[9999] w-64 rounded-md bg-popover border border-border shadow-lg px-3 py-2 text-xs text-foreground -translate-x-1/2 -translate-y-full"
+          style={{ top: pos.top, left: pos.left }}
+        >
+          {message}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
 
 function toDatetimeLocal(isoString) {
   if (!isoString) return '';
@@ -243,9 +271,7 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
             <Badge status={stream.status} />
 
             {stream.status === 'ERROR' && stream.errorMessage && (
-              <span className="text-xs text-red-400 max-w-[200px] truncate" title={friendlyError(stream.errorMessage)}>
-                {friendlyError(stream.errorMessage)}
-              </span>
+              <ErrorTooltip message={friendlyError(stream.errorMessage)} />
             )}
 
             {stream.status === 'ONLINE' && (
