@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import { requireAuth } from '../middleware/auth.js';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
+import { processAudio, transcodeAudio, audioTranscodingProgress } from '../services/transcoder.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const prisma = new PrismaClient();
@@ -91,8 +92,11 @@ router.post('/', requireAuth, uploadLimiter, upload.single('audio'), async (req,
       duration,
       bitrate,
       path: filePath,
+      status: 'PROCESSING',
     },
   });
+
+  processAudio(audio.id);
 
   res.status(201).json({ ...audio, size: Number(audio.size) });
 });
@@ -102,9 +106,28 @@ router.get('/', requireAuth, async (req, res) => {
   const audios = await prisma.audio.findMany({
     where: { userId: req.user.id },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, originalName: true, size: true, duration: true, bitrate: true, createdAt: true },
+    select: { id: true, originalName: true, size: true, duration: true, bitrate: true, status: true, createdAt: true },
   });
   res.json(audios.map(a => ({ ...a, size: Number(a.size) })));
+});
+
+// Transcode audio to AAC 128k
+router.post('/:id/transcode', requireAuth, async (req, res) => {
+  const audio = await prisma.audio.findFirst({
+    where: { id: req.params.id, userId: req.user.id },
+  });
+  if (!audio) return res.status(404).json({ error: 'Audio not found' });
+  if (!['NEEDS_PROCESSING', 'ERROR'].includes(audio.status)) {
+    return res.status(400).json({ error: 'Audio does not need processing' });
+  }
+  transcodeAudio(audio.id);
+  res.json({ ok: true });
+});
+
+// Get transcode progress
+router.get('/:id/progress', requireAuth, async (req, res) => {
+  const progress = audioTranscodingProgress.get(req.params.id) ?? null;
+  res.json({ progress });
 });
 
 // Delete audio file

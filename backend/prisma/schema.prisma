@@ -54,6 +54,7 @@ model Audio {
   duration     Float?
   bitrate      Int?
   path         String
+  status       AudioStatus @default(READY)
   createdAt    DateTime @default(now()) @map("created_at")
 
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -66,6 +67,14 @@ enum VideoStatus {
   PROCESSING
   NEEDS_TRANSCODE
   TRANSCODING
+  READY
+  ERROR
+}
+
+enum AudioStatus {
+  PROCESSING
+  NEEDS_PROCESSING
+  PROCESSING_IN_PROGRESS
   READY
   ERROR
 }

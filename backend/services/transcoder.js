@@ -7,6 +7,9 @@ const prisma = new PrismaClient();
 // videoId → progress (0-100)
 export const transcodingProgress = new Map();
 
+// audioId → progress (0-100)
+export const audioTranscodingProgress = new Map();
+
 // After upload: check keyframe interval, set READY or NEEDS_TRANSCODE
 export async function processVideo(videoId) {
   const video = await prisma.video.findUnique({ where: { id: videoId } });
@@ -176,6 +179,90 @@ function getVideoDimensions(filePath) {
       }
     });
     proc.on('error', () => resolve({ width: null, height: null }));
+  });
+}
+
+// After audio upload: check codec and bitrate, set READY or NEEDS_PROCESSING
+export async function processAudio(audioId) {
+  const audio = await prisma.audio.findUnique({ where: { id: audioId } });
+  if (!audio) return;
+
+  try {
+    const codec = await getAudioCodec(audio.path);
+    const needsProcessing = codec !== 'aac' || (audio.bitrate && audio.bitrate > 128_000);
+    await prisma.audio.update({
+      where: { id: audioId },
+      data: { status: needsProcessing ? 'NEEDS_PROCESSING' : 'READY' },
+    });
+  } catch (err) {
+    console.error(`processAudio check failed for ${audioId}:`, err.message);
+    await prisma.audio.update({ where: { id: audioId }, data: { status: 'NEEDS_PROCESSING' } });
+  }
+}
+
+// User-triggered audio transcode to AAC 128k
+export async function transcodeAudio(audioId) {
+  const audio = await prisma.audio.findUnique({ where: { id: audioId } });
+  if (!audio) return;
+
+  const inputPath = audio.path;
+  const outputPath = inputPath + '.transcoded.m4a';
+
+  audioTranscodingProgress.set(audioId, 0);
+  await prisma.audio.update({ where: { id: audioId }, data: { status: 'PROCESSING_IN_PROGRESS' } });
+
+  try {
+    await transcodeAudioFile(inputPath, outputPath, audio.duration, audioId);
+
+    await fs.unlink(inputPath);
+    await fs.rename(outputPath, inputPath);
+
+    const duration = await getVideoDuration(inputPath);
+    const newBitrate = await getVideoBitrate(inputPath);
+
+    audioTranscodingProgress.set(audioId, 100);
+    await prisma.audio.update({
+      where: { id: audioId },
+      data: { status: 'READY', duration: duration ?? audio.duration, ...(newBitrate && { bitrate: newBitrate }) },
+    });
+    audioTranscodingProgress.delete(audioId);
+  } catch (err) {
+    console.error(`Audio transcode failed for ${audioId}:`, err.message);
+    await fs.unlink(outputPath).catch(() => {});
+    await prisma.audio.update({ where: { id: audioId }, data: { status: 'ERROR' } });
+    audioTranscodingProgress.delete(audioId);
+  }
+}
+
+function transcodeAudioFile(inputPath, outputPath, totalDuration, audioId) {
+  return new Promise((resolve, reject) => {
+    const args = [
+      '-i', inputPath,
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-vn',
+      '-y',
+      outputPath,
+    ];
+
+    const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] });
+
+    proc.stderr.on('data', (data) => {
+      if (!totalDuration) return;
+      const match = data.toString().match(/time=(\d+):(\d+):(\d+\.\d+)/);
+      if (match) {
+        const current = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseFloat(match[3]);
+        const pct = Math.min(99, Math.round((current / totalDuration) * 100));
+        audioTranscodingProgress.set(audioId, pct);
+      }
+    });
+
+    proc.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`FFmpeg exited with code ${code}`));
+    });
+
+    proc.on('error', reject);
   });
 }
 

@@ -1,12 +1,31 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, Trash2, Music, Loader2 } from 'lucide-react';
+import { Upload, Trash2, Music, Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatBytes, formatDuration } from '@/lib/utils';
-import { uploadAudio, deleteAudio } from '@/lib/api';
+import { uploadAudio, deleteAudio, transcodeAudio, getAudioProgress } from '@/lib/api';
 
 export default function AudioLibrary({ audios, onRefresh }) {
   const [uploading, setUploading] = useState([]);
+  const [transcodingPct, setTranscodingPct] = useState({});
+
+  // Poll progress for audios being processed
+  useEffect(() => {
+    const processing = audios.filter(a => a.status === 'PROCESSING' || a.status === 'PROCESSING_IN_PROGRESS');
+    if (processing.length === 0) return;
+
+    const interval = setInterval(async () => {
+      for (const audio of processing) {
+        if (audio.status === 'PROCESSING_IN_PROGRESS') {
+          const { progress } = await getAudioProgress(audio.id).catch(() => ({ progress: null }));
+          if (progress !== null) setTranscodingPct(prev => ({ ...prev, [audio.id]: progress }));
+        }
+      }
+      onRefresh();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [audios]);
 
   const startUpload = async (file) => {
     const id = `${Date.now()}-${Math.random()}`;
@@ -46,6 +65,61 @@ export default function AudioLibrary({ audios, onRefresh }) {
     if (!confirm('Delete this audio file?')) return;
     await deleteAudio(id);
     onRefresh();
+  };
+
+  const handleFix = async (id) => {
+    await transcodeAudio(id).catch(() => {});
+    onRefresh();
+  };
+
+  const renderStatus = (audio) => {
+    const pct = transcodingPct[audio.id];
+
+    if (audio.status === 'PROCESSING') {
+      return (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 size={14} className="animate-spin shrink-0" />
+          <span className="text-xs">Checking...</span>
+        </div>
+      );
+    }
+
+    if (audio.status === 'PROCESSING_IN_PROGRESS') {
+      return (
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <Loader2 size={14} className="animate-spin text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="h-1 bg-border rounded-full overflow-hidden">
+              <div className="h-full bg-primary transition-all duration-300" style={{ width: `${pct ?? 0}%` }} />
+            </div>
+          </div>
+          <span className="text-xs text-muted-foreground shrink-0">{pct ?? 0}%</span>
+        </div>
+      );
+    }
+
+    if (audio.status === 'NEEDS_PROCESSING') {
+      return (
+        <div className="flex items-center gap-2 shrink-0">
+          <AlertTriangle size={14} className="text-yellow-500 shrink-0" />
+          <span className="text-xs text-yellow-500 hidden sm:inline">Not optimal for YouTube</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs text-yellow-500 border-yellow-500/30 hover:bg-yellow-500/10 shrink-0"
+            onClick={() => handleFix(audio.id)}
+          >
+            Fix for YouTube
+          </Button>
+        </div>
+      );
+    }
+
+    if (audio.status === 'ERROR') {
+      return <span className="text-xs text-destructive shrink-0">Processing failed</span>;
+    }
+
+    return null;
   };
 
   return (
@@ -91,6 +165,7 @@ export default function AudioLibrary({ audios, onRefresh }) {
                 {formatBytes(audio.size)} · {formatDuration(audio.duration)}{audio.bitrate ? ` · ${Math.round(audio.bitrate / 1000)} kbps` : ''}
               </p>
             </div>
+            {renderStatus(audio)}
             <Button
               variant="ghost"
               size="icon"

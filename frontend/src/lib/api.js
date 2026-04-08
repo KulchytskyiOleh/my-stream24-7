@@ -51,3 +51,5 @@ export const uploadAudio = (file, onProgress) => {
   }).then(r => r.data);
 };
 export const deleteAudio = (id) => api.delete(`/audios/${id}`).then(r => r.data);
+export const transcodeAudio = (id) => api.post(`/audios/${id}/transcode`).then(r => r.data);
+export const getAudioProgress = (id) => api.get(`/audios/${id}/progress`).then(r => r.data);
