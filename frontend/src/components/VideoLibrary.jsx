@@ -13,33 +13,15 @@ function formatBitrate(bps) {
   return `${Math.round(bps / 1_000_000)} Mbps`;
 }
 
-function dedup(options) {
-  const seen = new Set();
-  return options.filter(o => {
-    const v = Math.round(o.bitrate / 1000);
-    return seen.has(v) ? false : !!seen.add(v);
-  });
-}
-
+// Returns { min, recommended, max } in Mbps — based on YouTube H.264 bitrate table
 function getTranscodeOptions(width, fps) {
   const w = width ?? 1920;
   const is60 = fps > 40;
-
-  if (w >= 3840) return dedup(is60
-    ? [{ label: 'Min', bitrate: 18000 }, { label: 'Low', bitrate: 20000 }, { label: 'Recommended', bitrate: 22000, recommended: true }, { label: 'High', bitrate: 23500 }, { label: 'Max', bitrate: 25000 }]
-    : [{ label: 'Min', bitrate: 13000 }, { label: 'Low', bitrate: 14500 }, { label: 'Recommended', bitrate: 16000, recommended: true }, { label: 'High', bitrate: 17000 }, { label: 'Max', bitrate: 18000 }]);
-  if (w >= 2560) return dedup(is60
-    ? [{ label: 'Min', bitrate: 10000 }, { label: 'Low', bitrate: 11000 }, { label: 'Recommended', bitrate: 12000, recommended: true }, { label: 'High', bitrate: 12500 }, { label: 'Max', bitrate: 13000 }]
-    : [{ label: 'Min', bitrate: 7000 }, { label: 'Low', bitrate: 8000 }, { label: 'Recommended', bitrate: 9000, recommended: true }, { label: 'High', bitrate: 9500 }, { label: 'Max', bitrate: 10000 }]);
-  if (w >= 1920) return dedup(is60
-    ? [{ label: 'Min', bitrate: 6000 }, { label: 'Low', bitrate: 6200 }, { label: 'Recommended', bitrate: 6500, recommended: true }, { label: 'High', bitrate: 6800 }, { label: 'Max', bitrate: 7000 }]
-    : [{ label: 'Min', bitrate: 4500 }, { label: 'Low', bitrate: 5000 }, { label: 'Recommended', bitrate: 5500, recommended: true }, { label: 'High', bitrate: 5800 }, { label: 'Max', bitrate: 6000 }]);
-  if (w >= 1280) return dedup(is60
-    ? [{ label: 'Min', bitrate: 3500 }, { label: 'Low', bitrate: 4000 }, { label: 'Recommended', bitrate: 5000, recommended: true }, { label: 'High', bitrate: 5500 }, { label: 'Max', bitrate: 6000 }]
-    : [{ label: 'Min', bitrate: 2500 }, { label: 'Low', bitrate: 3000 }, { label: 'Recommended', bitrate: 3500, recommended: true }, { label: 'High', bitrate: 3800 }, { label: 'Max', bitrate: 4000 }]);
-  return dedup([
-    { label: 'Min', bitrate: 2000 }, { label: 'Low', bitrate: 2500 }, { label: 'Recommended', bitrate: 3000, recommended: true }, { label: 'High', bitrate: 3200 }, { label: 'Max', bitrate: 3500 },
-  ]);
+  if (w >= 3840) return is60 ? { min: 10, recommended: 35, max: 40 } : { min: 8, recommended: 30, max: 35 };
+  if (w >= 2560) return is60 ? { min: 6,  recommended: 24, max: 30 } : { min: 5, recommended: 15, max: 25 };
+  if (w >= 1920) return is60 ? { min: 4,  recommended: 12, max: 15 } : { min: 3, recommended: 10, max: 12 };
+  if (w >= 1280) return is60 ? { min: 2,  recommended: 7,  max: 10 } : { min: 1, recommended: 5,  max: 7  };
+  return { min: 1, recommended: 3, max: 5 };
 }
 
 function VideoMetaTooltip({ video }) {
@@ -89,9 +71,10 @@ function VideoMetaTooltip({ video }) {
 }
 
 function TranscodePicker({ video, onConfirm, onCancel }) {
-  const options = getTranscodeOptions(video.width, video.fps);
-  const defaultBitrate = options.find(o => o.recommended)?.bitrate ?? options[2]?.bitrate;
-  const [selected, setSelected] = useState(defaultBitrate);
+  const opts = getTranscodeOptions(video.width, video.fps);
+  const hasCustomRange = opts.max - opts.min > 2; // need at least 1 step between min and max
+  const [mode, setMode] = useState('recommended'); // 'min' | 'recommended' | 'max' | 'custom'
+  const [customMbps, setCustomMbps] = useState(opts.min + 1);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -102,34 +85,67 @@ function TranscodePicker({ video, onConfirm, onCancel }) {
     return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onClick); };
   }, [onCancel]);
 
+  const selectedMbps = mode === 'min' ? opts.min
+    : mode === 'max' ? opts.max
+    : mode === 'custom' ? customMbps
+    : opts.recommended;
+
+  const presets = [
+    { key: 'min',         label: 'Min',         value: opts.min },
+    { key: 'recommended', label: 'Recommended',  value: opts.recommended, star: true },
+    { key: 'max',         label: 'Max',          value: opts.max },
+  ];
+
   return (
-    <div ref={ref} className="mt-1 mb-1 p-3 bg-muted/80 border border-border rounded-md space-y-2">
+    <div ref={ref} className="mt-1 mb-1 p-3 bg-muted/80 border border-border rounded-md space-y-2.5">
       <p className="text-xs text-muted-foreground font-medium">Select target bitrate</p>
       <div className="flex flex-wrap gap-1.5">
-        {options.map(opt => (
+        {presets.map(p => (
           <button
-            key={opt.bitrate}
-            onClick={() => setSelected(opt.bitrate)}
+            key={p.key}
+            onClick={() => setMode(p.key)}
             className={`px-2.5 py-1 rounded text-xs border transition-colors ${
-              selected === opt.bitrate
+              mode === p.key
                 ? 'bg-primary text-primary-foreground border-primary'
                 : 'bg-background border-border hover:border-primary/50 text-foreground'
             }`}
           >
-            {opt.label}
-            <span className="ml-1 opacity-70">{Math.round(opt.bitrate / 1000)} Mbps</span>
-            {opt.recommended && selected !== opt.bitrate && (
-              <span className="ml-1 text-primary">★</span>
-            )}
+            {p.label} {p.value} Mbps{p.star && mode !== p.key ? ' ★' : ''}
           </button>
         ))}
+        {hasCustomRange && (
+          <button
+            onClick={() => setMode('custom')}
+            className={`px-2.5 py-1 rounded text-xs border transition-colors ${
+              mode === 'custom'
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background border-border hover:border-primary/50 text-foreground'
+            }`}
+          >
+            Custom{mode === 'custom' ? ` ${customMbps} Mbps` : ''}
+          </button>
+        )}
       </div>
+      {mode === 'custom' && hasCustomRange && (
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>{opts.min + 1} Mbps</span>
+            <span className="font-medium text-foreground">{customMbps} Mbps</span>
+            <span>{opts.max - 1} Mbps</span>
+          </div>
+          <input
+            type="range"
+            min={opts.min + 1}
+            max={opts.max - 1}
+            step={1}
+            value={customMbps}
+            onChange={e => setCustomMbps(Number(e.target.value))}
+            className="w-full accent-primary"
+          />
+        </div>
+      )}
       <div className="flex gap-2 pt-0.5">
-        <Button
-          size="sm"
-          className="h-7 text-xs"
-          onClick={() => onConfirm(selected)}
-        >
+        <Button size="sm" className="h-7 text-xs" onClick={() => onConfirm(selectedMbps * 1000)}>
           Transcode
         </Button>
         <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onCancel}>

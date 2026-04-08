@@ -50,7 +50,12 @@ export async function transcodeVideo(videoId, targetBitrate = null) {
       ? { width: video.width, height: video.height }
       : await getVideoDimensions(inputPath);
     const bitrateParams = getBitrateParams(width, height, fps);
-    if (targetBitrate) bitrateParams.bitrate = `${targetBitrate}k`;
+    if (targetBitrate) {
+      bitrateParams.bitrate  = `${targetBitrate}k`;
+      bitrateParams.minrate  = `${Math.round(targetBitrate * 0.8)}k`;
+      bitrateParams.maxrate  = `${Math.round(targetBitrate * 1.1)}k`;
+      bitrateParams.bufsize  = `${Math.round(targetBitrate * 2.2)}k`;
+    }
 
     await transcode(inputPath, outputPath, video.duration, videoId, bitrateParams);
 
