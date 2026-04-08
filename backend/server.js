@@ -84,6 +84,11 @@ app.use('/api/audios', audiosRouter);
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   // Reset stale ONLINE streams left from previous server run, then recover them

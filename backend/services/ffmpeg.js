@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import fs from 'fs/promises';
+import os from 'os';
 import { PrismaClient } from '@prisma/client';
 import { decrypt } from './encryption.js';
 
@@ -123,12 +124,13 @@ async function _startLoopStream(streamId, stream) {
     '-map', '1:a',
     '-c:v', 'copy',
     '-c:a', 'aac',
-    '-b:a', '256k',
+    '-b:a', '128k',
     '-f', 'flv',
     rtmpUrl,
   ];
 
   const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+  try { os.setPriority(proc.pid, 10); } catch (_) {}
   const state = { process: proc, stopped: false, mode: 'LOOP', concatPath, sessionId: loopSession.id };
   activeStreams.set(streamId, state);
   streamStartTimes.set(streamId, Date.now());
@@ -190,6 +192,7 @@ async function playNext(streamId) {
   ];
 
   const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+  try { os.setPriority(proc.pid, 10); } catch (_) {}
   state.process = proc;
 
   let lastStderr = '';
