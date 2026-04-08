@@ -107,7 +107,7 @@ export default function Dashboard() {
             </button>
           </div>
           {libraryTab === 'video'
-            ? <VideoLibrary videos={videos} onRefresh={refreshVideos} />
+            ? <VideoLibrary videos={videos} streams={streams} onRefresh={refreshVideos} />
             : <AudioLibrary audios={audios} onRefresh={refreshAudios} />
           }
         </div>

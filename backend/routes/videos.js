@@ -8,6 +8,7 @@ import { spawn } from 'child_process';
 import { Server as TusServer } from '@tus/server';
 import { FileStore } from '@tus/file-store';
 import { processVideo, transcodeVideo, transcodingProgress } from '../services/transcoder.js';
+import { isStreamRunning } from '../services/ffmpeg.js';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -110,10 +111,14 @@ router.all('/upload*', requireAuth, (req, res) => tusServer.handle(req, res));
 router.post('/:id/transcode', requireAuth, async (req, res) => {
   const video = await prisma.video.findFirst({
     where: { id: req.params.id, userId: req.user.id },
+    include: { currentStreams: { select: { id: true } } },
   });
   if (!video) return res.status(404).json({ error: 'Video not found' });
-  if (!['NEEDS_TRANSCODE', 'ERROR'].includes(video.status)) {
-    return res.status(400).json({ error: 'Video does not need transcoding' });
+  if (['PROCESSING', 'TRANSCODING'].includes(video.status)) {
+    return res.status(400).json({ error: 'Video is already being processed' });
+  }
+  if (video.currentStreams.some(s => isStreamRunning(s.id))) {
+    return res.status(409).json({ error: 'Video is currently being streamed' });
   }
   transcodeVideo(video.id).catch(err => console.error('transcodeVideo error:', err));
   res.json({ ok: true });

@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, Trash2, Film, Loader2, X, AlertTriangle } from 'lucide-react';
+import { Upload, Trash2, Film, Loader2, X, AlertTriangle, RefreshCw } from 'lucide-react';
 import * as tus from 'tus-js-client';
 import { Button } from '@/components/ui/button';
 import { formatBytes, formatDuration } from '@/lib/utils';
@@ -12,9 +12,13 @@ function formatBitrate(bps) {
   return `${Math.round(bps / 1_000_000)} Mbps`;
 }
 
-export default function VideoLibrary({ videos, onRefresh }) {
+export default function VideoLibrary({ videos, streams = [], onRefresh }) {
   const [uploading, setUploading] = useState([]);
   const [transcodingPct, setTranscodingPct] = useState({});
+
+  const activeVideoIds = new Set(
+    streams.filter(s => s.isRunning && s.currentVideo).map(s => s.currentVideo.id)
+  );
 
   // Poll progress for PROCESSING videos
   useEffect(() => {
@@ -184,6 +188,17 @@ export default function VideoLibrary({ videos, onRefresh }) {
                 onClick={() => { transcodeVideo(video.id).catch(() => {}).finally(onRefresh); }}
               >
                 Fix for YouTube
+              </Button>
+            )}
+            {video.status === 'READY' && !activeVideoIds.has(video.id) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="opacity-0 group-hover:opacity-100 h-7 text-xs shrink-0"
+                onClick={() => { transcodeVideo(video.id).catch(() => {}).finally(onRefresh); }}
+              >
+                <RefreshCw size={12} />
+                Transcode
               </Button>
             )}
             <Button
