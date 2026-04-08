@@ -42,19 +42,25 @@ export async function transcodeVideo(videoId) {
   await prisma.video.update({ where: { id: videoId }, data: { status: 'TRANSCODING' } });
 
   try {
-    await transcode(inputPath, outputPath, video.duration, videoId);
+    const fps = await getVideoFps(inputPath);
+    const { width, height } = video.width && video.height
+      ? { width: video.width, height: video.height }
+      : await getVideoDimensions(inputPath);
+    const bitrateParams = getBitrateParams(width, height, fps);
+
+    await transcode(inputPath, outputPath, video.duration, videoId, bitrateParams);
 
     await fs.unlink(inputPath);
     await fs.rename(outputPath, inputPath);
 
     const duration = await getVideoDuration(inputPath);
     const newBitrate = await getVideoBitrate(inputPath);
-    const { width, height } = await getVideoDimensions(inputPath);
+    const { width: newWidth, height: newHeight } = await getVideoDimensions(inputPath);
 
     transcodingProgress.set(videoId, 100);
     await prisma.video.update({
       where: { id: videoId },
-      data: { status: 'READY', duration, audioCodec: 'aac', ...(newBitrate && { bitrate: newBitrate }), ...(width && { width }), ...(height && { height }) },
+      data: { status: 'READY', duration, audioCodec: 'aac', ...(newBitrate && { bitrate: newBitrate }), ...(newWidth && { width: newWidth }), ...(newHeight && { height: newHeight }) },
     });
     transcodingProgress.delete(videoId);
   } catch (err) {
@@ -98,17 +104,71 @@ function checkNeedsTranscode(filePath) {
   });
 }
 
-function transcode(inputPath, outputPath, totalDuration, videoId) {
+function getVideoFps(filePath) {
+  return new Promise((resolve) => {
+    const proc = spawn('ffprobe', [
+      '-v', 'quiet',
+      '-print_format', 'json',
+      '-show_streams',
+      '-select_streams', 'v:0',
+      filePath,
+    ]);
+    let output = '';
+    proc.stdout.on('data', (d) => (output += d));
+    proc.on('close', () => {
+      try {
+        const stream = JSON.parse(output).streams?.[0];
+        const raw = stream?.r_frame_rate ?? '30/1';
+        const [num, den] = raw.split('/').map(Number);
+        resolve(den ? num / den : 30);
+      } catch {
+        resolve(30);
+      }
+    });
+    proc.on('error', () => resolve(30));
+  });
+}
+
+function getBitrateParams(width, height, fps) {
+  const is60 = fps > 40;
+  const w = width ?? 1920;
+
+  if (w >= 3840) {
+    return is60
+      ? { minrate: '18000k', bitrate: '22000k', maxrate: '25000k', bufsize: '50000k', gop: 120 }
+      : { minrate: '13000k', bitrate: '16000k', maxrate: '18000k', bufsize: '36000k', gop: 60 };
+  }
+  if (w >= 2560) {
+    return is60
+      ? { minrate: '10000k', bitrate: '12000k', maxrate: '13000k', bufsize: '26000k', gop: 120 }
+      : { minrate: '7000k',  bitrate: '9000k',  maxrate: '10000k', bufsize: '20000k', gop: 60 };
+  }
+  if (w >= 1920) {
+    return is60
+      ? { minrate: '6000k', bitrate: '6500k', maxrate: '7000k', bufsize: '14000k', gop: 120 }
+      : { minrate: '4500k', bitrate: '5500k', maxrate: '6000k', bufsize: '12000k', gop: 60 };
+  }
+  if (w >= 1280) {
+    return is60
+      ? { minrate: '3500k', bitrate: '5000k', maxrate: '6000k', bufsize: '12000k', gop: 120 }
+      : { minrate: '2500k', bitrate: '3500k', maxrate: '4000k', bufsize: '8000k',  gop: 60 };
+  }
+  return { minrate: '2000k', bitrate: '3000k', maxrate: '3500k', bufsize: '7000k', gop: 60 };
+}
+
+function transcode(inputPath, outputPath, totalDuration, videoId, bitrateParams) {
   return new Promise((resolve, reject) => {
+    const { minrate, bitrate, maxrate, bufsize, gop } = bitrateParams;
     const args = [
       '-i', inputPath,
       '-c:v', 'libx264',
       '-preset', 'veryfast',
-      '-b:v', '6M',
-      '-maxrate', '6M',
-      '-bufsize', '12M',
-      '-g', '48',
-      '-keyint_min', '48',
+      '-b:v', bitrate,
+      '-minrate', minrate,
+      '-maxrate', maxrate,
+      '-bufsize', bufsize,
+      '-g', String(gop),
+      '-keyint_min', String(gop),
       '-sc_threshold', '0',
       '-c:a', 'aac',
       '-b:a', '256k',
