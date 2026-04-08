@@ -38,7 +38,7 @@ async function handleStreamError(streamId, errorMessage) {
   }
 }
 
-export async function startStream(streamId) {
+export async function startStream(streamId, options = {}) {
   if (activeStreams.has(streamId)) {
     throw new Error('Stream already running');
   }
@@ -64,10 +64,10 @@ export async function startStream(streamId) {
   if (stream.mode === 'LOOP') {
     return _startLoopStream(streamId, stream);
   }
-  return _startPlaylistStream(streamId, stream);
+  return _startPlaylistStream(streamId, stream, options);
 }
 
-async function _startPlaylistStream(streamId, stream) {
+async function _startPlaylistStream(streamId, stream, options = {}) {
   if (stream.playlistItems.length === 0) throw new Error('Playlist is empty');
 
   const streamKey = decrypt(stream.streamKeyEnc);
@@ -75,13 +75,19 @@ async function _startPlaylistStream(streamId, stream) {
     ? shuffleArray([...stream.playlistItems])
     : [...stream.playlistItems];
 
+  let startIndex = 0;
+  if (options.resumeVideoId) {
+    const idx = playlist.findIndex(i => i.video.id === options.resumeVideoId);
+    if (idx >= 0) startIndex = idx;
+  }
+
   await prisma.stream.update({
     where: { id: streamId },
     data: { status: 'ONLINE', errorMessage: null },
   });
 
   const session = await prisma.streamSession.create({ data: { streamId } });
-  const state = { process: null, currentIndex: 0, playlist, streamKey, stopped: false, mode: 'PLAYLIST', sessionId: session.id };
+  const state = { process: null, currentIndex: startIndex, playlist, streamKey, stopped: false, mode: 'PLAYLIST', sessionId: session.id };
   activeStreams.set(streamId, state);
   streamStartTimes.set(streamId, Date.now());
 

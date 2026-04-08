@@ -94,7 +94,7 @@ app.listen(PORT, async () => {
   // Reset stale ONLINE streams left from previous server run, then recover them
   const onlineStreams = await prisma.stream.findMany({
     where: { status: 'ONLINE' },
-    select: { id: true },
+    select: { id: true, currentVideoId: true },
   });
   await prisma.stream.updateMany({
     where: { status: 'ONLINE' },
@@ -102,7 +102,7 @@ app.listen(PORT, async () => {
   });
   for (const s of onlineStreams) {
     try {
-      await startStream(s.id);
+      await startStream(s.id, { resumeVideoId: s.currentVideoId });
       console.log(`Auto-recovered stream ${s.id}`);
     } catch (err) {
       console.error(`Failed to recover stream ${s.id}:`, err.message);
