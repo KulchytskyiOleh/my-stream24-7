@@ -39,7 +39,7 @@ function VideoMetaTooltip({ video }) {
   if (!hasInfo) return null;
 
   return (
-    <div className="bg-popover border border-border rounded-md shadow-lg p-2.5 text-xs space-y-1 min-w-[140px]">
+    <div className="bg-background border border-border rounded-md shadow-md p-2.5 text-xs space-y-1 min-w-[140px]">
       {video.width && video.height && (
         <div className="flex justify-between gap-3">
           <span className="text-muted-foreground">Resolution</span>

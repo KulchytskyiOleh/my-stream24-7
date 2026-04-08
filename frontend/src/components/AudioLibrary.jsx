@@ -179,7 +179,7 @@ export default function AudioLibrary({ audios, onRefresh }) {
             </div>
             {(audio.duration != null || audio.size != null || audio.bitrate) && (
               <Tooltip content={
-                <div className="bg-popover border border-border rounded-md shadow-lg p-2.5 text-xs space-y-1 min-w-[130px]">
+                <div className="bg-background border border-border rounded-md shadow-md p-2.5 text-xs space-y-1 min-w-[130px]">
                   {audio.duration != null && (
                     <div className="flex justify-between gap-3">
                       <span className="text-muted-foreground">Duration</span>
