@@ -17,12 +17,15 @@ export async function processVideo(videoId) {
 
   try {
     const highBitrate = video.bitrate && video.bitrate > 8_000_000;
-    const badKeyframes = await checkNeedsTranscode(video.path);
+    const [badKeyframes, audioCodec, fps] = await Promise.all([
+      checkNeedsTranscode(video.path),
+      getAudioCodec(video.path),
+      getVideoFps(video.path),
+    ]);
     const needsTranscode = highBitrate || badKeyframes;
-    const audioCodec = await getAudioCodec(video.path);
     await prisma.video.update({
       where: { id: videoId },
-      data: { status: needsTranscode ? 'NEEDS_TRANSCODE' : 'READY', audioCodec },
+      data: { status: needsTranscode ? 'NEEDS_TRANSCODE' : 'READY', audioCodec, fps },
     });
   } catch (err) {
     console.error(`processVideo check failed for ${videoId}:`, err.message);
@@ -31,7 +34,7 @@ export async function processVideo(videoId) {
 }
 
 // User-triggered transcode
-export async function transcodeVideo(videoId) {
+export async function transcodeVideo(videoId, targetBitrate = null) {
   const video = await prisma.video.findUnique({ where: { id: videoId } });
   if (!video) return;
 
@@ -47,6 +50,7 @@ export async function transcodeVideo(videoId) {
       ? { width: video.width, height: video.height }
       : await getVideoDimensions(inputPath);
     const bitrateParams = getBitrateParams(width, height, fps);
+    if (targetBitrate) bitrateParams.bitrate = `${targetBitrate}k`;
 
     await transcode(inputPath, outputPath, video.duration, videoId, bitrateParams);
 
@@ -56,11 +60,12 @@ export async function transcodeVideo(videoId) {
     const duration = await getVideoDuration(inputPath);
     const newBitrate = await getVideoBitrate(inputPath);
     const { width: newWidth, height: newHeight } = await getVideoDimensions(inputPath);
+    const newFps = await getVideoFps(inputPath);
 
     transcodingProgress.set(videoId, 100);
     await prisma.video.update({
       where: { id: videoId },
-      data: { status: 'READY', duration, audioCodec: 'aac', ...(newBitrate && { bitrate: newBitrate }), ...(newWidth && { width: newWidth }), ...(newHeight && { height: newHeight }) },
+      data: { status: 'READY', duration, audioCodec: 'aac', fps: newFps, ...(newBitrate && { bitrate: newBitrate }), ...(newWidth && { width: newWidth }), ...(newHeight && { height: newHeight }) },
     });
     transcodingProgress.delete(videoId);
   } catch (err) {

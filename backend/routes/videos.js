@@ -120,7 +120,8 @@ router.post('/:id/transcode', requireAuth, async (req, res) => {
   if (video.currentStreams.some(s => isStreamRunning(s.id))) {
     return res.status(409).json({ error: 'Video is currently being streamed' });
   }
-  transcodeVideo(video.id).catch(err => console.error('transcodeVideo error:', err));
+  const { targetBitrate } = req.body;
+  transcodeVideo(video.id, targetBitrate ?? null).catch(err => console.error('transcodeVideo error:', err));
   res.json({ ok: true });
 });
 
@@ -133,7 +134,7 @@ router.get('/', requireAuth, async (req, res) => {
   const videos = await prisma.video.findMany({
     where: { userId: req.user.id },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, originalName: true, size: true, duration: true, bitrate: true, width: true, height: true, status: true, createdAt: true },
+    select: { id: true, originalName: true, size: true, duration: true, bitrate: true, width: true, height: true, fps: true, audioCodec: true, status: true, createdAt: true },
   });
   res.json(videos.map(v => ({ ...v, size: Number(v.size) })));
 });

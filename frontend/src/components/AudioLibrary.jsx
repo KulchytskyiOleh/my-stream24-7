@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, Trash2, Music, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/tooltip';
 import { formatBytes, formatDuration } from '@/lib/utils';
 import { uploadAudio, deleteAudio, transcodeAudio, getAudioProgress } from '@/lib/api';
 
@@ -172,7 +173,32 @@ export default function AudioLibrary({ audios, onRefresh }) {
       <div className="space-y-1">
         {audios.map(audio => (
           <div key={audio.id} className="flex items-center gap-3 p-3 rounded-md hover:bg-muted/50 group">
-            <Music size={16} className="text-muted-foreground shrink-0" />
+            <Tooltip content={
+              (audio.duration != null || audio.size != null || audio.bitrate) ? (
+                <div className="bg-popover border border-border rounded-md shadow-lg p-2.5 text-xs space-y-1 min-w-[130px]">
+                  {audio.duration != null && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">Duration</span>
+                      <span className="font-medium">{formatDuration(audio.duration)}</span>
+                    </div>
+                  )}
+                  {audio.size != null && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">Size</span>
+                      <span className="font-medium">{formatBytes(audio.size)}</span>
+                    </div>
+                  )}
+                  {audio.bitrate && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">Bitrate</span>
+                      <span className="font-medium">{Math.round(audio.bitrate / 1000)} kbps</span>
+                    </div>
+                  )}
+                </div>
+              ) : null
+            }>
+              <Music size={16} className="text-muted-foreground shrink-0 cursor-default" />
+            </Tooltip>
             <div className="flex-1 min-w-0">
               <p className="text-sm truncate">{audio.originalName}</p>
               <p className="text-xs text-muted-foreground">

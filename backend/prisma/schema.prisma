@@ -35,6 +35,7 @@ model Video {
   height       Int?
   path         String
   audioCodec   String?     @map("audio_codec")
+  fps          Float?
   status       VideoStatus @default(PROCESSING)
   createdAt    DateTime    @default(now()) @map("created_at")
 
