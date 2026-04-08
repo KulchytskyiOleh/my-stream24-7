@@ -373,3 +373,16 @@ function getVideoDuration(filePath) {
     proc.on('error', () => resolve(null));
   });
 }
+
+export async function backfillVideoFps() {
+  const videos = await prisma.video.findMany({
+    where: { fps: null, status: { notIn: ['PROCESSING', 'TRANSCODING'] } },
+    select: { id: true, path: true },
+  });
+  for (const video of videos) {
+    const fps = await getVideoFps(video.path).catch(() => null);
+    if (fps != null) {
+      await prisma.video.update({ where: { id: video.id }, data: { fps } });
+    }
+  }
+}

@@ -15,6 +15,7 @@ import streamsRouter from './routes/streams.js';
 import audiosRouter from './routes/audios.js';
 import { startScheduler } from './services/scheduler.js';
 import { startStream } from './services/ffmpeg.js';
+import { backfillVideoFps } from './services/transcoder.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const prisma = new PrismaClient();
@@ -111,5 +112,6 @@ app.listen(PORT, async () => {
     }
   }
   startScheduler();
+  backfillVideoFps().catch(err => console.error('backfillVideoFps error:', err));
   console.log(`Server running on http://localhost:${PORT}`);
 });

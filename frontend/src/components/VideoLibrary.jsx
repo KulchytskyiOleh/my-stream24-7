@@ -13,25 +13,33 @@ function formatBitrate(bps) {
   return `${Math.round(bps / 1_000_000)} Mbps`;
 }
 
+function dedup(options) {
+  const seen = new Set();
+  return options.filter(o => {
+    const v = Math.round(o.bitrate / 1000);
+    return seen.has(v) ? false : !!seen.add(v);
+  });
+}
+
 function getTranscodeOptions(width, fps) {
   const w = width ?? 1920;
   const is60 = fps > 40;
 
-  if (w >= 3840) return is60
+  if (w >= 3840) return dedup(is60
     ? [{ label: 'Min', bitrate: 18000 }, { label: 'Low', bitrate: 20000 }, { label: 'Recommended', bitrate: 22000, recommended: true }, { label: 'High', bitrate: 23500 }, { label: 'Max', bitrate: 25000 }]
-    : [{ label: 'Min', bitrate: 13000 }, { label: 'Low', bitrate: 14500 }, { label: 'Recommended', bitrate: 16000, recommended: true }, { label: 'High', bitrate: 17000 }, { label: 'Max', bitrate: 18000 }];
-  if (w >= 2560) return is60
+    : [{ label: 'Min', bitrate: 13000 }, { label: 'Low', bitrate: 14500 }, { label: 'Recommended', bitrate: 16000, recommended: true }, { label: 'High', bitrate: 17000 }, { label: 'Max', bitrate: 18000 }]);
+  if (w >= 2560) return dedup(is60
     ? [{ label: 'Min', bitrate: 10000 }, { label: 'Low', bitrate: 11000 }, { label: 'Recommended', bitrate: 12000, recommended: true }, { label: 'High', bitrate: 12500 }, { label: 'Max', bitrate: 13000 }]
-    : [{ label: 'Min', bitrate: 7000 }, { label: 'Low', bitrate: 8000 }, { label: 'Recommended', bitrate: 9000, recommended: true }, { label: 'High', bitrate: 9500 }, { label: 'Max', bitrate: 10000 }];
-  if (w >= 1920) return is60
+    : [{ label: 'Min', bitrate: 7000 }, { label: 'Low', bitrate: 8000 }, { label: 'Recommended', bitrate: 9000, recommended: true }, { label: 'High', bitrate: 9500 }, { label: 'Max', bitrate: 10000 }]);
+  if (w >= 1920) return dedup(is60
     ? [{ label: 'Min', bitrate: 6000 }, { label: 'Low', bitrate: 6200 }, { label: 'Recommended', bitrate: 6500, recommended: true }, { label: 'High', bitrate: 6800 }, { label: 'Max', bitrate: 7000 }]
-    : [{ label: 'Min', bitrate: 4500 }, { label: 'Low', bitrate: 5000 }, { label: 'Recommended', bitrate: 5500, recommended: true }, { label: 'High', bitrate: 5800 }, { label: 'Max', bitrate: 6000 }];
-  if (w >= 1280) return is60
+    : [{ label: 'Min', bitrate: 4500 }, { label: 'Low', bitrate: 5000 }, { label: 'Recommended', bitrate: 5500, recommended: true }, { label: 'High', bitrate: 5800 }, { label: 'Max', bitrate: 6000 }]);
+  if (w >= 1280) return dedup(is60
     ? [{ label: 'Min', bitrate: 3500 }, { label: 'Low', bitrate: 4000 }, { label: 'Recommended', bitrate: 5000, recommended: true }, { label: 'High', bitrate: 5500 }, { label: 'Max', bitrate: 6000 }]
-    : [{ label: 'Min', bitrate: 2500 }, { label: 'Low', bitrate: 3000 }, { label: 'Recommended', bitrate: 3500, recommended: true }, { label: 'High', bitrate: 3800 }, { label: 'Max', bitrate: 4000 }];
-  return [
+    : [{ label: 'Min', bitrate: 2500 }, { label: 'Low', bitrate: 3000 }, { label: 'Recommended', bitrate: 3500, recommended: true }, { label: 'High', bitrate: 3800 }, { label: 'Max', bitrate: 4000 }]);
+  return dedup([
     { label: 'Min', bitrate: 2000 }, { label: 'Low', bitrate: 2500 }, { label: 'Recommended', bitrate: 3000, recommended: true }, { label: 'High', bitrate: 3200 }, { label: 'Max', bitrate: 3500 },
-  ];
+  ]);
 }
 
 function VideoMetaTooltip({ video }) {
