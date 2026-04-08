@@ -16,9 +16,10 @@ export async function processVideo(videoId) {
     const highBitrate = video.bitrate && video.bitrate > 8_000_000;
     const badKeyframes = await checkNeedsTranscode(video.path);
     const needsTranscode = highBitrate || badKeyframes;
+    const audioCodec = await getAudioCodec(video.path);
     await prisma.video.update({
       where: { id: videoId },
-      data: { status: needsTranscode ? 'NEEDS_TRANSCODE' : 'READY' },
+      data: { status: needsTranscode ? 'NEEDS_TRANSCODE' : 'READY', audioCodec },
     });
   } catch (err) {
     console.error(`processVideo check failed for ${videoId}:`, err.message);
@@ -50,7 +51,7 @@ export async function transcodeVideo(videoId) {
     transcodingProgress.set(videoId, 100);
     await prisma.video.update({
       where: { id: videoId },
-      data: { status: 'READY', duration, ...(newBitrate && { bitrate: newBitrate }), ...(width && { width }), ...(height && { height }) },
+      data: { status: 'READY', duration, audioCodec: 'aac', ...(newBitrate && { bitrate: newBitrate }), ...(width && { width }), ...(height && { height }) },
     });
     transcodingProgress.delete(videoId);
   } catch (err) {
@@ -175,6 +176,28 @@ function getVideoDimensions(filePath) {
       }
     });
     proc.on('error', () => resolve({ width: null, height: null }));
+  });
+}
+
+function getAudioCodec(filePath) {
+  return new Promise((resolve) => {
+    const proc = spawn('ffprobe', [
+      '-v', 'quiet',
+      '-print_format', 'json',
+      '-show_streams',
+      '-select_streams', 'a:0',
+      filePath,
+    ]);
+    let output = '';
+    proc.stdout.on('data', (d) => (output += d));
+    proc.on('close', () => {
+      try {
+        resolve(JSON.parse(output).streams?.[0]?.codec_name ?? null);
+      } catch {
+        resolve(null);
+      }
+    });
+    proc.on('error', () => resolve(null));
   });
 }
 

@@ -33,6 +33,7 @@ model Video {
   width        Int?
   height       Int?
   path         String
+  audioCodec   String?     @map("audio_codec")
   status       VideoStatus @default(PROCESSING)
   createdAt    DateTime    @default(now()) @map("created_at")
 

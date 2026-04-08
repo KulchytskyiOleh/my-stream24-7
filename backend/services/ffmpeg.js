@@ -182,11 +182,15 @@ async function playNext(streamId) {
     data: { currentVideoId: item.video.id },
   });
 
+  const audioArgs = item.video.audioCodec === 'aac'
+    ? ['-c:a', 'copy']
+    : ['-c:a', 'aac', '-b:a', '128k'];
+
   const args = [
     '-re',
     '-i', videoPath,
     '-c:v', 'copy',
-    '-c:a', 'aac',
+    ...audioArgs,
     '-f', 'flv',
     rtmpUrl,
   ];
