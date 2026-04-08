@@ -117,8 +117,8 @@ router.post('/:id/transcode', requireAuth, async (req, res) => {
     where: { id: req.params.id, userId: req.user.id },
   });
   if (!audio) return res.status(404).json({ error: 'Audio not found' });
-  if (!['NEEDS_PROCESSING', 'ERROR'].includes(audio.status)) {
-    return res.status(400).json({ error: 'Audio does not need processing' });
+  if (['PROCESSING', 'PROCESSING_IN_PROGRESS'].includes(audio.status)) {
+    return res.status(400).json({ error: 'Audio is already being processed' });
   }
   transcodeAudio(audio.id);
   res.json({ ok: true });

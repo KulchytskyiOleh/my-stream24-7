@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, Trash2, Music, Loader2, AlertTriangle } from 'lucide-react';
+import { Upload, Trash2, Music, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatBytes, formatDuration } from '@/lib/utils';
 import { uploadAudio, deleteAudio, transcodeAudio, getAudioProgress } from '@/lib/api';
@@ -117,6 +117,20 @@ export default function AudioLibrary({ audios, onRefresh }) {
 
     if (audio.status === 'ERROR') {
       return <span className="text-xs text-destructive shrink-0">Processing failed</span>;
+    }
+
+    if (audio.status === 'READY') {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className="opacity-0 group-hover:opacity-100 h-7 text-xs shrink-0"
+          onClick={() => handleFix(audio.id)}
+        >
+          <RefreshCw size={12} />
+          Transcode
+        </Button>
+      );
     }
 
     return null;
