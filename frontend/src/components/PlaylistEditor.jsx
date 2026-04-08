@@ -67,6 +67,7 @@ function ModeTab({ active, onClick, children }) {
 function PlaylistMode({ stream, videos, onUpdate }) {
   const [items, setItems] = useState(stream.playlistItems ?? []);
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -79,6 +80,7 @@ function PlaylistMode({ stream, videos, onUpdate }) {
       const oldIdx = items.findIndex(i => i.id === active.id);
       const newIdx = items.findIndex(i => i.id === over.id);
       setItems(arrayMove(items, oldIdx, newIdx));
+      setIsDirty(true);
     }
   };
 
@@ -91,14 +93,19 @@ function PlaylistMode({ stream, videos, onUpdate }) {
       videoId: video.id,
       position: prev.length,
     }]);
+    setIsDirty(true);
   };
 
-  const removeItem = (itemId) => setItems(prev => prev.filter(i => i.id !== itemId));
+  const removeItem = (itemId) => {
+    setItems(prev => prev.filter(i => i.id !== itemId));
+    setIsDirty(true);
+  };
 
   const save = async () => {
     setSaving(true);
     try {
       await updatePlaylist(stream.id, items.map(i => i.video.id));
+      setIsDirty(false);
       onUpdate();
     } finally {
       setSaving(false);
@@ -168,9 +175,11 @@ function PlaylistMode({ stream, videos, onUpdate }) {
           </DndContext>
         )}
 
-        <Button className="mt-4 w-full" onClick={save} disabled={saving}>
-          {saving ? 'Saving...' : 'Save Playlist'}
-        </Button>
+        {isDirty && (
+          <Button className="mt-4 w-full" onClick={save} disabled={saving}>
+            {saving ? 'Saving...' : 'Save Playlist'}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -182,6 +191,7 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
   const [selectedVideoId, setSelectedVideoId] = useState(stream.loopVideoId ?? '');
   const [audioItems, setAudioItems] = useState(stream.loopAudioItems ?? []);
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -194,6 +204,7 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
       const oldIdx = audioItems.findIndex(i => i.id === active.id);
       const newIdx = audioItems.findIndex(i => i.id === over.id);
       setAudioItems(arrayMove(audioItems, oldIdx, newIdx));
+      setIsDirty(true);
     }
   };
 
@@ -206,9 +217,13 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
       audioId: audio.id,
       position: prev.length,
     }]);
+    setIsDirty(true);
   };
 
-  const removeAudioItem = (itemId) => setAudioItems(prev => prev.filter(i => i.id !== itemId));
+  const removeAudioItem = (itemId) => {
+    setAudioItems(prev => prev.filter(i => i.id !== itemId));
+    setIsDirty(true);
+  };
 
   const save = async () => {
     setSaving(true);
@@ -219,6 +234,7 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
       }
       updates.push(updateLoopAudio(stream.id, audioItems.map(i => i.audio.id)));
       await Promise.all(updates);
+      setIsDirty(false);
       onUpdate();
     } catch (err) {
       alert(err.response?.data?.error || err.message);
@@ -248,7 +264,7 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
         </h3>
         <select
           value={selectedVideoId}
-          onChange={e => setSelectedVideoId(e.target.value)}
+          onChange={e => { setSelectedVideoId(e.target.value); setIsDirty(true); }}
           className="w-full text-sm bg-background border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring"
         >
           <option value="">— Select a video —</option>
@@ -329,9 +345,11 @@ function LoopMode({ stream, videos, audios, onUpdate }) {
         </div>
       </div>
 
-      <Button className="w-full" onClick={save} disabled={saving}>
-        {saving ? 'Saving...' : 'Save Loop Settings'}
-      </Button>
+      {isDirty && (
+        <Button className="w-full" onClick={save} disabled={saving}>
+          {saving ? 'Saving...' : 'Save Loop Settings'}
+        </Button>
+      )}
     </div>
   );
 }
