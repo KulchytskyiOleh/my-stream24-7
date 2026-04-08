@@ -1,6 +1,37 @@
+import { useEffect, useState } from 'react';
 import { Radio } from 'lucide-react';
+import { getAuthConfig, registerLocal, loginLocal } from '@/lib/api';
 
 export default function Login() {
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    getAuthConfig().then(cfg => setGoogleEnabled(cfg.googleEnabled)).catch(() => {});
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      if (mode === 'register') {
+        await registerLocal(email, password);
+      } else {
+        await loginLocal(email, password);
+      }
+      window.location.href = '/';
+    } catch (err) {
+      setError(err.response?.data?.error || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="text-center space-y-8 max-w-sm w-full">
@@ -15,14 +46,66 @@ export default function Login() {
         </div>
 
         <div className="bg-card border border-border rounded-lg p-8 space-y-4">
-          <p className="text-sm text-muted-foreground">Sign in to continue</p>
-          <a
-            href="/auth/google"
-            className="flex items-center justify-center gap-3 w-full h-10 px-4 rounded-md border border-border bg-transparent hover:bg-accent text-sm font-medium transition-colors"
-          >
-            <GoogleIcon />
-            Continue with Google
-          </a>
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              className="w-full h-10 px-3 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              minLength={8}
+              className="w-full h-10 px-3 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            {error && <p className="text-xs text-destructive text-left">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {loading ? '...' : mode === 'login' ? 'Sign in' : 'Create account'}
+            </button>
+          </form>
+
+          <p className="text-xs text-muted-foreground">
+            {mode === 'login' ? (
+              <>No account?{' '}
+                <button onClick={() => { setMode('register'); setError(''); }} className="underline hover:text-foreground">
+                  Register
+                </button>
+              </>
+            ) : (
+              <>Already have an account?{' '}
+                <button onClick={() => { setMode('login'); setError(''); }} className="underline hover:text-foreground">
+                  Sign in
+                </button>
+              </>
+            )}
+          </p>
+
+          {googleEnabled && (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-xs text-muted-foreground">or</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+              <a
+                href="/auth/google"
+                className="flex items-center justify-center gap-3 w-full h-10 px-4 rounded-md border border-border bg-transparent hover:bg-accent text-sm font-medium transition-colors"
+              >
+                <GoogleIcon />
+                Continue with Google
+              </a>
+            </>
+          )}
         </div>
       </div>
     </div>

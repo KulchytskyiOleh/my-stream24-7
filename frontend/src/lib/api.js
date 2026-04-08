@@ -10,6 +10,9 @@ export default api;
 // Auth
 export const getMe = () => axios.get('/auth/me', { withCredentials: true }).then(r => r.data);
 export const logout = () => axios.post('/auth/logout', {}, { withCredentials: true });
+export const getAuthConfig = () => axios.get('/auth/config', { withCredentials: true }).then(r => r.data);
+export const registerLocal = (email, password) => axios.post('/auth/register', { email, password }, { withCredentials: true }).then(r => r.data);
+export const loginLocal = (email, password) => axios.post('/auth/login/local', { email, password }, { withCredentials: true }).then(r => r.data);
 
 // Videos
 export const getVideos = () => api.get('/videos').then(r => r.data);

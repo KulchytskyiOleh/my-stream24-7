@@ -40,31 +40,33 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Passport Google OAuth
-passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: process.env.GOOGLE_CALLBACK_URL,
-}, async (accessToken, refreshToken, profile, done) => {
-  try {
-    const user = await prisma.user.upsert({
-      where: { googleId: profile.id },
-      update: {
-        name: profile.displayName,
-        avatar: profile.photos?.[0]?.value,
-      },
-      create: {
-        googleId: profile.id,
-        email: profile.emails?.[0]?.value,
-        name: profile.displayName,
-        avatar: profile.photos?.[0]?.value,
-      },
-    });
-    done(null, user);
-  } catch (err) {
-    done(err);
-  }
-}));
+// Passport Google OAuth (optional)
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: process.env.GOOGLE_CALLBACK_URL,
+  }, async (accessToken, refreshToken, profile, done) => {
+    try {
+      const user = await prisma.user.upsert({
+        where: { googleId: profile.id },
+        update: {
+          name: profile.displayName,
+          avatar: profile.photos?.[0]?.value,
+        },
+        create: {
+          googleId: profile.id,
+          email: profile.emails?.[0]?.value,
+          name: profile.displayName,
+          avatar: profile.photos?.[0]?.value,
+        },
+      });
+      done(null, user);
+    } catch (err) {
+      done(err);
+    }
+  }));
+}
 
 passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser(async (id, done) => {
