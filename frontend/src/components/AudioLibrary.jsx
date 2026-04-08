@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, Trash2, Music, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Upload, Trash2, Music, Loader2, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { formatBytes, formatDuration } from '@/lib/utils';
@@ -173,8 +173,12 @@ export default function AudioLibrary({ audios, onRefresh }) {
       <div className="space-y-1">
         {audios.map(audio => (
           <div key={audio.id} className="flex items-center gap-3 p-3 rounded-md hover:bg-muted/50 group">
-            <Tooltip content={
-              (audio.duration != null || audio.size != null || audio.bitrate) ? (
+            <Music size={16} className="text-muted-foreground shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm truncate">{audio.originalName}</p>
+            </div>
+            {(audio.duration != null || audio.size != null || audio.bitrate) && (
+              <Tooltip content={
                 <div className="bg-popover border border-border rounded-md shadow-lg p-2.5 text-xs space-y-1 min-w-[130px]">
                   {audio.duration != null && (
                     <div className="flex justify-between gap-3">
@@ -195,16 +199,10 @@ export default function AudioLibrary({ audios, onRefresh }) {
                     </div>
                   )}
                 </div>
-              ) : null
-            }>
-              <Music size={16} className="text-muted-foreground shrink-0 cursor-default" />
-            </Tooltip>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm truncate">{audio.originalName}</p>
-              <p className="text-xs text-muted-foreground">
-                {formatBytes(audio.size)} · {formatDuration(audio.duration)}{audio.bitrate ? ` · ${Math.round(audio.bitrate / 1000)} kbps` : ''}
-              </p>
-            </div>
+              }>
+                <Info size={14} className="text-muted-foreground/50 hover:text-muted-foreground shrink-0 cursor-default transition-colors" />
+              </Tooltip>
+            )}
             {renderStatus(audio)}
             <Button
               variant="ghost"

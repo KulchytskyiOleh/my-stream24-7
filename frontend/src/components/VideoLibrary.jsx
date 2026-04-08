@@ -1,6 +1,6 @@
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, Trash2, Film, Loader2, X, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Upload, Trash2, Film, Loader2, X, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import * as tus from 'tus-js-client';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -279,15 +279,8 @@ export default function VideoLibrary({ videos, streams = [], onRefresh }) {
             <div className="flex items-center gap-3 p-3 rounded-md hover:bg-muted/50 group">
               {video.status === 'PROCESSING' || video.status === 'TRANSCODING'
                 ? <Loader2 size={16} className="text-muted-foreground shrink-0 animate-spin" />
-                : showTooltip(video.status)
-                ? (
-                  <Tooltip content={<VideoMetaTooltip video={video} />}>
-                    {video.status === 'NEEDS_TRANSCODE'
-                      ? <AlertTriangle size={16} className="text-yellow-500 shrink-0 cursor-default" />
-                      : <Film size={16} className="text-muted-foreground shrink-0 cursor-default" />
-                    }
-                  </Tooltip>
-                )
+                : video.status === 'NEEDS_TRANSCODE'
+                ? <AlertTriangle size={16} className="text-yellow-500 shrink-0" />
                 : <Film size={16} className="text-muted-foreground shrink-0" />
               }
               <div className="flex-1 min-w-0">
@@ -306,19 +299,16 @@ export default function VideoLibrary({ videos, streams = [], onRefresh }) {
                     </div>
                   </div>
                 ) : video.status === 'NEEDS_TRANSCODE' ? (
-                  <div>
-                    <p className="text-xs text-muted-foreground">{formatBytes(video.size)} · {formatDuration(video.duration)}{video.bitrate ? ` · ${formatBitrate(video.bitrate)}` : ''}</p>
-                    <p className="text-xs text-yellow-500">Keyframe interval too large for YouTube</p>
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    {video.status === 'ERROR'
-                      ? 'Processing failed'
-                      : `${formatBytes(video.size)} · ${formatDuration(video.duration)}${video.bitrate ? ` · ${formatBitrate(video.bitrate)}` : ''}`
-                    }
-                  </p>
-                )}
+                  <p className="text-xs text-yellow-500">Keyframe interval too large for YouTube</p>
+                ) : video.status === 'ERROR' ? (
+                  <p className="text-xs text-destructive">Processing failed</p>
+                ) : null}
               </div>
+              {showTooltip(video.status) && (
+                <Tooltip content={<VideoMetaTooltip video={video} />}>
+                  <Info size={14} className="text-muted-foreground/50 hover:text-muted-foreground shrink-0 cursor-default transition-colors" />
+                </Tooltip>
+              )}
               {video.status === 'NEEDS_TRANSCODE' && (
                 <Button
                   variant="outline"
