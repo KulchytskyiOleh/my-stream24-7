@@ -1,11 +1,22 @@
+import { useState } from 'react';
+
 export function Tooltip({ content, children }) {
+  const [visible, setVisible] = useState(false);
+
+  if (!content) return children;
+
   return (
-    <div className="relative group/tt inline-flex">
+    <div
+      className="relative inline-flex"
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+    >
       {children}
-      <div className="absolute bottom-full left-0 mb-1.5 opacity-0 group-hover/tt:opacity-100
-                      pointer-events-none z-50 transition-opacity duration-150">
-        {content}
-      </div>
+      {visible && (
+        <div className="absolute bottom-full left-0 mb-1.5 pointer-events-none z-50">
+          {content}
+        </div>
+      )}
     </div>
   );
 }
