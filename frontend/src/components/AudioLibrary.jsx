@@ -119,7 +119,7 @@ export default function AudioLibrary({ audios, onRefresh }) {
       return <span className="text-xs text-destructive shrink-0">Processing failed</span>;
     }
 
-    if (audio.status === 'READY') {
+    if (audio.status === 'READY' && (!audio.bitrate || audio.bitrate > 128_000)) {
       return (
         <Button
           variant="outline"

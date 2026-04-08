@@ -190,7 +190,7 @@ export default function VideoLibrary({ videos, streams = [], onRefresh }) {
                 Fix for YouTube
               </Button>
             )}
-            {video.status === 'READY' && !activeVideoIds.has(video.id) && (
+            {video.status === 'READY' && !activeVideoIds.has(video.id) && (!video.bitrate || video.bitrate > 8_000_000) && (
               <Button
                 variant="outline"
                 size="sm"
