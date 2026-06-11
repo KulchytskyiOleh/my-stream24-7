@@ -88,8 +88,8 @@ async function _startPlaylistStream(streamId, stream, options = {}) {
   });
 
   await prisma.streamSession.updateMany({
-    where: { streamId, endedAt: null },
-    data: { endedAt: new Date(), reason: 'STOPPED' },
+    where: { streamId, stoppedAt: null },
+    data: { stoppedAt: new Date(), reason: 'STOPPED' },
   });
   const session = await prisma.streamSession.create({ data: { streamId } });
   const state = { process: null, currentIndex: startIndex, playlist, streamKey, stopped: false, mode: 'PLAYLIST', sessionId: session.id };
@@ -122,8 +122,8 @@ async function _startLoopStream(streamId, stream) {
   });
 
   await prisma.streamSession.updateMany({
-    where: { streamId, endedAt: null },
-    data: { endedAt: new Date(), reason: 'STOPPED' },
+    where: { streamId, stoppedAt: null },
+    data: { stoppedAt: new Date(), reason: 'STOPPED' },
   });
   const loopSession = await prisma.streamSession.create({ data: { streamId } });
 
