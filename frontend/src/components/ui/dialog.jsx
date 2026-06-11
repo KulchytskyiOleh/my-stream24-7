@@ -21,7 +21,7 @@ export function Dialog({ open, onClose, children }) {
 
 export function DialogContent({ className, children }) {
   return (
-    <div className={cn('bg-card border border-border rounded-lg shadow-xl p-6', className)}>
+    <div className={cn('relative bg-card border border-border rounded-lg shadow-xl p-6', className)}>
       {children}
     </div>
   );

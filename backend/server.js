@@ -13,8 +13,9 @@ import authRouter from './routes/auth.js';
 import videosRouter from './routes/videos.js';
 import streamsRouter from './routes/streams.js';
 import audiosRouter from './routes/audios.js';
+import systemRouter from './routes/system.js';
 import { startScheduler } from './services/scheduler.js';
-import { startStream } from './services/ffmpeg.js';
+import { startStream, killAllStreams } from './services/ffmpeg.js';
 import { backfillVideoFps } from './services/transcoder.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -84,12 +85,18 @@ app.use('/auth', authRouter);
 app.use('/api/videos', videosRouter);
 app.use('/api/streams', streamsRouter);
 app.use('/api/audios', audiosRouter);
+app.use('/api/system', systemRouter);
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
+});
+
+process.on('SIGTERM', () => {
+  killAllStreams();
+  process.exit(0);
 });
 
 const PORT = process.env.PORT || 3000;

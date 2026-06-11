@@ -283,6 +283,20 @@ export function isStreamRunning(streamId) {
   return activeStreams.has(streamId);
 }
 
+// Kill all FFmpeg processes without touching DB — used on graceful shutdown so streams auto-recover on next start
+export function killAllStreams() {
+  for (const [, state] of activeStreams) {
+    state.stopped = true;
+    if (state.process && !state.process.killed) {
+      state.process.kill('SIGKILL');
+    }
+    if (state.concatPath) {
+      fs.unlink(state.concatPath).catch(() => {});
+    }
+  }
+  activeStreams.clear();
+}
+
 // Update playlist without interrupting current video
 export async function updateStreamPlaylist(streamId) {
   const state = activeStreams.get(streamId);
