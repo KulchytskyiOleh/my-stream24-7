@@ -102,12 +102,17 @@ export default function AudioLibrary({ audios, onRefresh }) {
     if (audio.status === 'NEEDS_PROCESSING') {
       return (
         <div className="flex items-center gap-2 shrink-0">
-          <AlertTriangle size={14} className="text-yellow-500 shrink-0" />
-          <span className="text-xs text-yellow-500 hidden sm:inline">Not optimal for YouTube</span>
+          <Tooltip content={
+            <div className="bg-background border border-border rounded-md shadow-md p-2.5 text-xs whitespace-nowrap">
+              <span className="text-yellow-500">Not optimal for YouTube</span>
+            </div>
+          }>
+            <AlertTriangle size={14} className="text-yellow-500 shrink-0 cursor-default" />
+          </Tooltip>
           <Button
             variant="outline"
             size="sm"
-            className="h-7 text-xs text-yellow-500 border-yellow-500/30 hover:bg-yellow-500/10 shrink-0"
+            className="hidden group-hover:inline-flex h-7 text-xs text-yellow-500 border-yellow-500/30 hover:bg-yellow-500/10 shrink-0"
             onClick={() => handleFix(audio.id)}
           >
             Fix for YouTube
@@ -175,7 +180,7 @@ export default function AudioLibrary({ audios, onRefresh }) {
           <div key={audio.id} className="flex items-center gap-3 p-3 rounded-md hover:bg-muted/50 group">
             <Music size={16} className="text-muted-foreground shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm truncate">{audio.originalName}</p>
+              <p className="text-sm truncate" title={audio.originalName}>{audio.originalName}</p>
             </div>
             {(audio.duration != null || audio.size != null || audio.bitrate) && (
               <Tooltip content={

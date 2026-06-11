@@ -303,12 +303,10 @@ export default function VideoLibrary({ videos, streams = [], onRefresh }) {
             <div className="flex items-center gap-3 p-3 rounded-md hover:bg-muted/50 group">
               {video.status === 'PROCESSING' || video.status === 'TRANSCODING'
                 ? <Loader2 size={16} className="text-muted-foreground shrink-0 animate-spin" />
-                : video.status === 'NEEDS_TRANSCODE'
-                ? <AlertTriangle size={16} className="text-yellow-500 shrink-0" />
                 : <Film size={16} className="text-muted-foreground shrink-0" />
               }
               <div className="flex-1 min-w-0">
-                <p className="text-sm truncate">{video.originalName}</p>
+                <p className="text-sm truncate" title={video.originalName}>{video.originalName}</p>
                 {video.status === 'PROCESSING' ? (
                   <p className="text-xs text-muted-foreground">Checking...</p>
                 ) : video.status === 'TRANSCODING' ? (
@@ -322,8 +320,6 @@ export default function VideoLibrary({ videos, streams = [], onRefresh }) {
                         style={{ width: `${transcodingPct[video.id] ?? 0}%` }} />
                     </div>
                   </div>
-                ) : video.status === 'NEEDS_TRANSCODE' ? (
-                  <p className="text-xs text-yellow-500">Keyframe interval too large for YouTube</p>
                 ) : video.status === 'ERROR' ? (
                   <p className="text-xs text-destructive">Processing failed</p>
                 ) : null}
@@ -334,10 +330,28 @@ export default function VideoLibrary({ videos, streams = [], onRefresh }) {
                 </Tooltip>
               )}
               {video.status === 'NEEDS_TRANSCODE' && (
+                <Tooltip content={
+                  <div className="bg-background border border-border rounded-md shadow-md p-2.5 text-xs whitespace-nowrap">
+                    <span className="text-yellow-500">Keyframe interval too large for YouTube</span>
+                  </div>
+                }>
+                  <AlertTriangle size={14} className="text-yellow-500 shrink-0 cursor-default" />
+                </Tooltip>
+              )}
+              {video.status === 'READY' && (!video.bitrate || video.bitrate > 8_000_000) && (
+                <Tooltip content={
+                  <div className="bg-background border border-border rounded-md shadow-md p-2.5 text-xs whitespace-nowrap">
+                    <span className="text-yellow-500">Bitrate too high for YouTube</span>
+                  </div>
+                }>
+                  <AlertTriangle size={14} className="text-yellow-500 shrink-0 cursor-default" />
+                </Tooltip>
+              )}
+              {video.status === 'NEEDS_TRANSCODE' && (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 text-xs text-yellow-500 border-yellow-500/30 hover:bg-yellow-500/10 shrink-0"
+                  className="hidden group-hover:inline-flex h-7 text-xs text-yellow-500 border-yellow-500/30 hover:bg-yellow-500/10 shrink-0"
                   onClick={() => openPicker(video)}
                 >
                   Fix for YouTube
@@ -347,7 +361,7 @@ export default function VideoLibrary({ videos, streams = [], onRefresh }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="opacity-0 group-hover:opacity-100 h-7 text-xs shrink-0"
+                  className="hidden group-hover:inline-flex h-7 text-xs shrink-0"
                   onClick={() => openPicker(video)}
                 >
                   <RefreshCw size={12} />
