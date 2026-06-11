@@ -37,6 +37,7 @@ export const deleteStream = (id) => api.delete(`/streams/${id}`).then(r => r.dat
 export const startStream = (id) => api.post(`/streams/${id}/start`).then(r => r.data);
 export const stopStream = (id) => api.post(`/streams/${id}/stop`).then(r => r.data);
 export const restartStream = (id) => api.post(`/streams/${id}/restart`).then(r => r.data);
+export const syncStream = (id) => api.post(`/streams/${id}/sync`).then(r => r.data);
 export const updatePlaylist = (id, videoIds) =>
   api.put(`/streams/${id}/playlist`, { videoIds }).then(r => r.data);
 export const getStreamHistory = (id) => api.get(`/streams/${id}/history`).then(r => r.data);

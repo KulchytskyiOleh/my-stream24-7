@@ -126,6 +126,24 @@ router.post('/:id/start', requireAuth, async (req, res) => {
   }
 });
 
+// Sync stream status with in-memory state
+router.post('/:id/sync', requireAuth, async (req, res) => {
+  const stream = await prisma.stream.findFirst({
+    where: { id: req.params.id, userId: req.user.id },
+  });
+  if (!stream) return res.status(404).json({ error: 'Stream not found' });
+
+  const running = isStreamRunning(stream.id);
+  const correctStatus = running ? 'ONLINE' : 'OFFLINE';
+  if (stream.status !== correctStatus) {
+    await prisma.stream.update({
+      where: { id: stream.id },
+      data: { status: correctStatus, ...(running ? {} : { currentVideoId: null }) },
+    });
+  }
+  res.json({ ok: true, status: correctStatus });
+});
+
 // Stop stream
 router.post('/:id/stop', requireAuth, async (req, res) => {
   const stream = await prisma.stream.findFirst({

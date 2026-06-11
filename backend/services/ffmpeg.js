@@ -40,7 +40,8 @@ async function handleStreamError(streamId, errorMessage) {
 
 export async function startStream(streamId, options = {}) {
   if (activeStreams.has(streamId)) {
-    throw new Error('Stream already running');
+    await prisma.stream.update({ where: { id: streamId }, data: { status: 'ONLINE' } });
+    return;
   }
   streamRetries.delete(streamId);
 
@@ -317,6 +318,7 @@ export async function stopAllUserStreams(userId) {
     await stopStream(s.id);
   }
 }
+
 
 function shuffleArray(arr) {
   for (let i = arr.length - 1; i > 0; i--) {

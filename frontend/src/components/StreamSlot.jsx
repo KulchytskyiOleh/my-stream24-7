@@ -1,11 +1,11 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Play, Square, Pencil, Trash2, ChevronDown, ChevronUp, Radio, RotateCcw, Check, X, Clock, AlertCircle, History, Eye, EyeOff } from 'lucide-react';
+import { Play, Square, Pencil, Trash2, ChevronDown, ChevronUp, Radio, RotateCcw, RefreshCw, Check, X, Clock, AlertCircle, History, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import PlaylistEditor from './PlaylistEditor';
-import { startStream, stopStream, restartStream, deleteStream, updateStream, getStreamHistory, getStreamKey } from '@/lib/api';
+import { startStream, stopStream, restartStream, syncStream, deleteStream, updateStream, getStreamHistory, getStreamKey } from '@/lib/api';
 
 function ErrorTooltip({ message }) {
   const [visible, setVisible] = useState(false);
@@ -160,6 +160,15 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
       alert(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSync = async () => {
+    try {
+      await syncStream(stream.id);
+      onRefresh();
+    } catch (err) {
+      alert(err.response?.data?.error || err.message);
     }
   };
 
@@ -323,6 +332,18 @@ export default function StreamSlot({ stream, videos, audios, onRefresh }) {
               >
                 <RotateCcw size={12} className={restarting ? 'animate-spin' : ''} />
                 {restarting ? 'Restarting...' : 'Restart'}
+              </Button>
+            )}
+
+            {stream.status !== 'ONLINE' && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSync}
+                title="Sync status with server"
+                className="gap-1.5 px-2"
+              >
+                <RefreshCw size={12} />
               </Button>
             )}
 
