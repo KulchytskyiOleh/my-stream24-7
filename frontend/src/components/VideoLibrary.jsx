@@ -360,7 +360,7 @@ export default function VideoLibrary({ videos, streams = [], onRefresh }) {
                   <AlertTriangle size={14} className="text-yellow-500 shrink-0 cursor-default" />
                 </Tooltip>
               )}
-              {video.status === 'READY' && (!video.bitrate || video.bitrate > 8_000_000) && (
+              {video.status === 'READY' && video.bitrate && video.bitrate > getTranscodeOptions(video.width, video.fps).max * 1_000_000 && (
                 <Tooltip content={
                   <div className="bg-background border border-border rounded-md shadow-md p-2.5 text-xs whitespace-nowrap">
                     <span className="text-yellow-500">Bitrate too high for YouTube</span>
@@ -379,7 +379,7 @@ export default function VideoLibrary({ videos, streams = [], onRefresh }) {
                   Fix for YouTube
                 </Button>
               )}
-              {video.status === 'READY' && !activeVideoIds.has(video.id) && (!video.bitrate || video.bitrate > 8_000_000) && (
+              {video.status === 'READY' && !activeVideoIds.has(video.id) && video.bitrate && video.bitrate > getTranscodeOptions(video.width, video.fps).max * 1_000_000 && (
                 <Button
                   variant="outline"
                   size="sm"
