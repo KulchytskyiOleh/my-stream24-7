@@ -166,7 +166,7 @@ export default function VideoLibrary({ videos, streams = [], onRefresh }) {
   );
 
   useEffect(() => {
-    const processing = videos.filter(v => v.status === 'PROCESSING');
+    const processing = videos.filter(v => v.status === 'TRANSCODING');
     if (processing.length === 0) return;
 
     const interval = setInterval(async () => {
