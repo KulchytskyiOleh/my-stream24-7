@@ -259,7 +259,7 @@ export async function processAudio(audioId) {
 
   try {
     const codec = await getAudioCodec(audio.path);
-    const needsProcessing = codec !== 'aac' || (audio.bitrate && audio.bitrate > 160_000);
+    const needsProcessing = codec !== 'aac' || (audio.bitrate && audio.bitrate > 128_000);
     await prisma.audio.update({
       where: { id: audioId },
       data: { status: needsProcessing ? 'NEEDS_PROCESSING' : 'READY' },
