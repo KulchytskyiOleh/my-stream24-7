@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, Trash2, Music, Loader2, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { uploadAudio, deleteAudio, transcodeAudio, getAudioProgress } from '@/li
 export default function AudioLibrary({ audios, onRefresh }) {
   const [uploading, setUploading] = useState([]);
   const [transcodingPct, setTranscodingPct] = useState({});
+  const transcodeStartRef = useRef({});
 
   // Poll progress for audios being processed
   useEffect(() => {
@@ -19,7 +20,12 @@ export default function AudioLibrary({ audios, onRefresh }) {
       for (const audio of processing) {
         if (audio.status === 'PROCESSING_IN_PROGRESS') {
           const { progress } = await getAudioProgress(audio.id).catch(() => ({ progress: null }));
-          if (progress !== null) setTranscodingPct(prev => ({ ...prev, [audio.id]: progress }));
+          if (progress !== null) {
+            if (progress > 0 && !transcodeStartRef.current[audio.id]) {
+              transcodeStartRef.current[audio.id] = { time: Date.now(), pct: progress };
+            }
+            setTranscodingPct(prev => ({ ...prev, [audio.id]: progress }));
+          }
         }
       }
       onRefresh();
@@ -27,6 +33,18 @@ export default function AudioLibrary({ audios, onRefresh }) {
 
     return () => clearInterval(interval);
   }, [audios]);
+
+  function getEta(audioId) {
+    const pct = transcodingPct[audioId];
+    const start = transcodeStartRef.current[audioId];
+    if (!pct || !start || pct <= start.pct) return null;
+    const elapsed = (Date.now() - start.time) / 1000;
+    const rate = (pct - start.pct) / elapsed;
+    const remaining = (100 - pct) / rate;
+    if (remaining < 5) return null;
+    if (remaining < 60) return `~${Math.round(remaining)}s`;
+    return `~${Math.round(remaining / 60)} min`;
+  }
 
   const startUpload = async (file) => {
     const id = `${Date.now()}-${Math.random()}`;
@@ -86,15 +104,19 @@ export default function AudioLibrary({ audios, onRefresh }) {
     }
 
     if (audio.status === 'PROCESSING_IN_PROGRESS') {
+      const eta = getEta(audio.id);
       return (
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Loader2 size={14} className="animate-spin text-primary shrink-0" />
           <div className="flex-1 min-w-0">
+            <div className="flex justify-between text-xs text-muted-foreground mb-0.5">
+              <span>Transcoding...{eta ? ` ${eta} left` : ''}</span>
+              <span>{pct ?? 0}%</span>
+            </div>
             <div className="h-1 bg-border rounded-full overflow-hidden">
               <div className="h-full bg-primary transition-all duration-300" style={{ width: `${pct ?? 0}%` }} />
             </div>
           </div>
-          <span className="text-xs text-muted-foreground shrink-0">{pct ?? 0}%</span>
         </div>
       );
     }
