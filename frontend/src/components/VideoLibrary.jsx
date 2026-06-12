@@ -160,6 +160,7 @@ export default function VideoLibrary({ videos, streams = [], onRefresh }) {
   const [uploading, setUploading] = useState([]);
   const [transcodingPct, setTranscodingPct] = useState({});
   const [transcodePicker, setTranscodePicker] = useState(null); // videoId or null
+  const transcodeStartRef = useRef({}); // videoId -> { time, pct }
 
   const activeVideoIds = new Set(
     streams.filter(s => s.isRunning && s.currentVideo).map(s => s.currentVideo.id)
@@ -173,12 +174,33 @@ export default function VideoLibrary({ videos, streams = [], onRefresh }) {
       const updates = await Promise.all(
         processing.map(v => api.get(`/videos/${v.id}/progress`).then(r => [v.id, r.data.progress]))
       );
-      setTranscodingPct(Object.fromEntries(updates));
+      setTranscodingPct(prev => {
+        const next = { ...prev };
+        for (const [id, pct] of updates) {
+          if (pct > 0 && !transcodeStartRef.current[id]) {
+            transcodeStartRef.current[id] = { time: Date.now(), pct };
+          }
+          next[id] = pct;
+        }
+        return next;
+      });
       onRefresh();
     }, 3000);
 
     return () => clearInterval(interval);
   }, [videos]);
+
+  function getEta(videoId) {
+    const pct = transcodingPct[videoId];
+    const start = transcodeStartRef.current[videoId];
+    if (!pct || !start || pct <= start.pct) return null;
+    const elapsed = (Date.now() - start.time) / 1000;
+    const rate = (pct - start.pct) / elapsed;
+    const remaining = (100 - pct) / rate;
+    if (remaining < 5) return null;
+    if (remaining < 60) return `~${Math.round(remaining)}s`;
+    return `~${Math.round(remaining / 60)} min`;
+  }
 
   const startUpload = (file) => {
     const id = `${Date.now()}-${Math.random()}`;
@@ -312,7 +334,7 @@ export default function VideoLibrary({ videos, streams = [], onRefresh }) {
                 ) : video.status === 'TRANSCODING' ? (
                   <div className="mt-1">
                     <div className="flex justify-between text-xs text-muted-foreground mb-0.5">
-                      <span>Transcoding...</span>
+                      <span>Transcoding...{getEta(video.id) ? ` ${getEta(video.id)} left` : ''}</span>
                       <span>{transcodingPct[video.id] ?? 0}%</span>
                     </div>
                     <div className="h-1 bg-border rounded-full overflow-hidden">
